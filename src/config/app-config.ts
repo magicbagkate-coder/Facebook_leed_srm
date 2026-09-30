@@ -5,7 +5,7 @@ type AppConfig = {
   sitniksApiKey: string;
 };
 
-const DEFAULT_PORT = 3000;
+const DEFAULT_PORT = 5000;
 
 function readRequired(name: string): string {
   const value = process.env[name];
