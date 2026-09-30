@@ -206,3 +206,7 @@
 # Перед завершением задачи - npm run check (lint + typecheck + test).
 
 # .env и .env.* в .gitignore; в репозитории только .env.example.
+
+# Совместимость с сервером: локально только разрабатываем, запуск и тесты - на сервере (Docker, node:22-alpine, Node 22 LTS). Код, версии зависимостей и @types/node - под Node 22, не под локальную версию. Версия Node зафиксирована в .nvmrc, package.json (engines) и Dockerfile - менять все три вместе.
+
+# Перед деплоем проверять сборку так же, как на сервере: docker compose up -d --build.
