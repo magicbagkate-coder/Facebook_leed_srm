@@ -3,7 +3,7 @@ module.exports = {
   testRegex: '.*\\.spec\\.ts$',
   extensionsToTreatAsEsm: ['.ts'],
   moduleNameMapper: {
-    '^#/(.*)\\.js$': '<rootDir>/$1',
+    '^#app/(.*)\\.js$': '<rootDir>/$1',
     '^(\\.{1,2}/.*)\\.js$': '$1',
   },
   transform: {

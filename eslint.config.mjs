@@ -77,15 +77,15 @@ export default tseslint.config(
       // Aliases and env
       'no-restricted-imports': [
         'error',
-        { patterns: [{ group: ['../*', './*'], message: 'Use the #/ alias instead of relative imports.' }] },
+        { patterns: [{ group: ['../*', './*'], message: 'Use the #app/ alias instead of relative imports.' }] },
       ],
       'no-restricted-properties': [
         'error',
         { object: 'process', property: 'env', message: 'Read env only in src/config via appConfig.' },
       ],
 
-      // Import order: packages, then #/ alias
-      'simple-import-sort/imports': ['error', { groups: [['^\\u0000'], ['^@?\\w'], ['^#/']] }],
+      // Import order: packages, then #app/ alias
+      'simple-import-sort/imports': ['error', { groups: [['^\\u0000'], ['^@?\\w'], ['^#app/']] }],
       'simple-import-sort/exports': 'error',
     },
   },

@@ -199,7 +199,7 @@
 
 # Конфиг и env: dotenv подключается только в src/config/app-config.ts. process.env вне src/config запрещён - использовать appConfig.
 
-# Алиас: импорты только через #/ (например #/health/health.controller.js), относительные ../ и ./ запрещены. Алиас задан в package.json (imports).
+# Алиас: импорты только через #app/ (например #app/health/health.controller.js), относительные ../ и ./ запрещены. Алиас задан в package.json (imports).
 
 # Правила выше закодированы в eslint.config.mjs. После каждой правки .ts запускается hook (.claude/hooks/lint-file.mjs): eslint --fix, при ошибках - исправлять до зелёного.
 
