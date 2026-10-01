@@ -23,6 +23,7 @@ const HTTP_TOO_MANY_REQUESTS = 429;
 export class FacebookMonitor implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(FacebookMonitor.name);
   private readonly chatsWithDirect = new Set<string>();
+  private readonly reviewing = new Set<string>();
   private timer: NodeJS.Timeout | undefined;
   private isRunning = false;
   private pausedUntil = 0;
@@ -66,9 +67,30 @@ export class FacebookMonitor implements OnModuleInit, OnModuleDestroy {
     return movedIds;
   }
 
+  /** Reviews one chat reported by a webhook; errors are logged and never thrown. */
+  async reviewChat(chat: SitniksChat): Promise<void> {
+    if (this.isPaused()) return;
+    try {
+      await this.checkChat({ chat, dryRun: appConfig.dryRun });
+    } catch (error) {
+      this.registerFailure(error);
+    }
+  }
+
+  /** Skips chats already known to have client messages or already being reviewed right now. */
   private async checkChat(options: { chat: SitniksChat; dryRun: boolean }): Promise<boolean> {
     const { chat } = options;
-    if (this.chatsWithDirect.has(chat.id)) return false;
+    if (this.chatsWithDirect.has(chat.id) || this.reviewing.has(chat.id)) return false;
+    this.reviewing.add(chat.id);
+    try {
+      return await this.evaluateChat(options);
+    } finally {
+      this.reviewing.delete(chat.id);
+    }
+  }
+
+  private async evaluateChat(options: { chat: SitniksChat; dryRun: boolean }): Promise<boolean> {
+    const { chat } = options;
     const verdict = await this.judgeChat(chat);
     if (verdict === 'has-direct') this.chatsWithDirect.add(chat.id);
     if (verdict !== 'move') return false;
@@ -103,7 +125,11 @@ export class FacebookMonitor implements OnModuleInit, OnModuleDestroy {
   }
 
   private isBusy(): boolean {
-    return this.isRunning || Date.now() < this.pausedUntil;
+    return this.isRunning || this.isPaused();
+  }
+
+  private isPaused(): boolean {
+    return Date.now() < this.pausedUntil;
   }
 
   private registerFailure(error: unknown): void {
