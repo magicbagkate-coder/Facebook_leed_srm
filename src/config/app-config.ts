@@ -3,6 +3,7 @@ import 'dotenv/config';
 type AppConfig = {
   port: number;
   sitniksApiKey: string;
+  webhookToken: string;
   sitniksBaseUrl: string;
   dryRun: boolean;
   pollIntervalMs: number;
@@ -21,6 +22,7 @@ function readRequired(name: string): string {
 export const appConfig: AppConfig = {
   port: Number(process.env.PORT ?? DEFAULT_PORT),
   sitniksApiKey: readRequired('SITNIKS_API_KEY'),
+  webhookToken: readRequired('WEBHOOK_TOKEN'),
   sitniksBaseUrl: SITNIKS_BASE_URL,
   // Safe by default: chats are changed only when DRY_RUN=false
   dryRun: process.env.DRY_RUN !== 'false',
