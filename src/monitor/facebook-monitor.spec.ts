@@ -2,6 +2,7 @@ import { FacebookMonitor } from '#app/monitor/facebook-monitor.js';
 import type {
   ClientMessageOptions,
   HasMessagesOptions,
+  SetTagsOptions,
   SitniksChat,
 } from '#app/sitniks/sitniks.types.js';
 import { SitniksClient } from '#app/sitniks/sitniks-client.js';
@@ -13,6 +14,7 @@ type FakeMessages = {
 
 class FakeSitniksClient {
   readonly movedIds: string[] = [];
+  readonly tagCalls: SetTagsOptions[] = [];
 
   constructor(
     private readonly chats: SitniksChat[],
@@ -31,19 +33,24 @@ class FakeSitniksClient {
     return this.messages[options.chatId].comments;
   }
 
+  async setChatTags(options: SetTagsOptions): Promise<void> {
+    this.tagCalls.push(options);
+  }
+
   async changeChatStatus(options: { chatId: string; status: string }): Promise<void> {
     this.movedIds.push(options.chatId);
   }
 }
 
-function buildChat(id: string): SitniksChat {
+function buildChat(options: { id: string; tags?: string[] }): SitniksChat {
   return {
-    id,
+    id: options.id,
     initialSource: 'facebook',
     ownerName: 'Page',
-    userId: `client-${id}`,
-    userName: `User ${id}`,
+    userId: `client-${options.id}`,
+    userName: `User ${options.id}`,
     status: 'Новий',
+    tags: options.tags ?? [],
   };
 }
 
@@ -53,10 +60,10 @@ function buildMonitor(fake: FakeSitniksClient): FacebookMonitor {
 
 describe('FacebookMonitor', () => {
   const chats = [
-    buildChat('only-comments'),
-    buildChat('our-direct-only'),
-    buildChat('client-direct'),
-    buildChat('empty'),
+    buildChat({ id: 'only-comments', tags: ['Reels'] }),
+    buildChat({ id: 'our-direct-only', tags: ['ФБ'] }),
+    buildChat({ id: 'client-direct' }),
+    buildChat({ id: 'empty' }),
   ];
   // "our-direct-only": we wrote in direct, the client did not answer -> clientDirect is false
   const messages = {
@@ -74,10 +81,17 @@ describe('FacebookMonitor', () => {
     expect(fake.movedIds).toEqual(expectedMoved);
   });
 
+  it('adds the ФБ tag, keeps old tags and does not duplicate the tag', async () => {
+    const fake = new FakeSitniksClient(chats, messages);
+    await buildMonitor(fake).runOnce({ dryRun: false });
+    expect(fake.tagCalls).toEqual([{ chatId: 'only-comments', tags: ['Reels', 'ФБ'] }]);
+  });
+
   it('does not change any chat in dry-run mode', async () => {
     const fake = new FakeSitniksClient(chats, messages);
     const movedIds = await buildMonitor(fake).runOnce({ dryRun: true });
     expect(movedIds).toEqual(expectedMoved);
     expect(fake.movedIds).toEqual([]);
+    expect(fake.tagCalls).toEqual([]);
   });
 });

@@ -5,6 +5,7 @@ export type SitniksChat = {
   userId: string;
   userName: string;
   status: string;
+  tags: string[];
 };
 
 export type SitniksMessage = {
@@ -35,13 +36,18 @@ export type ClientMessageOptions = {
   userId: string;
 };
 
+export type SetTagsOptions = {
+  chatId: string;
+  tags: string[];
+};
+
 export type ChangeStatusOptions = {
   chatId: string;
   status: string;
 };
 
 export type SitniksRequest = {
-  method: 'GET' | 'PATCH';
+  method: 'GET' | 'PATCH' | 'PUT';
   path: string;
   query?: URLSearchParams;
   body?: string;

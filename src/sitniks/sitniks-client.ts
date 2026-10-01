@@ -8,6 +8,7 @@ import type {
   ClientMessageOptions,
   HasMessagesOptions,
   ListChatsOptions,
+  SetTagsOptions,
   SitniksChat,
   SitniksRequest,
 } from '#app/sitniks/sitniks.types.js';
@@ -57,6 +58,15 @@ export class SitniksClient {
       skip += page.data.length;
     } while (page.data.length === PAGE_SIZE);
     return false;
+  }
+
+  /** Replaces the whole tag list of the chat, so pass the existing tags too. */
+  async setChatTags(options: SetTagsOptions): Promise<void> {
+    await this.send({
+      method: 'PUT',
+      path: `/chats/${options.chatId}`,
+      body: JSON.stringify({ tags: options.tags }),
+    });
   }
 
   async changeChatStatus(options: ChangeStatusOptions): Promise<void> {

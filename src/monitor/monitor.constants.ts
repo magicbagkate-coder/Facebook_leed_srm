@@ -2,6 +2,7 @@
 export const WATCHED_STATUS = 'Новий';
 export const TARGET_STATUS = 'Фейсбук';
 export const FACEBOOK_SOURCE = 'facebook';
+export const FACEBOOK_TAG = 'ФБ';
 
 // Pause after a 429 response: the API blocks for 1 minute, add a margin
 export const RATE_LIMIT_PAUSE_MS = 70_000;

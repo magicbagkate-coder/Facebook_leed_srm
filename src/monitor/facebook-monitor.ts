@@ -3,6 +3,7 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import { appConfig } from '#app/config/app-config.js';
 import {
   FACEBOOK_SOURCE,
+  FACEBOOK_TAG,
   RATE_LIMIT_PAUSE_MS,
   TARGET_STATUS,
   WATCHED_STATUS,
@@ -90,8 +91,12 @@ export class FacebookMonitor implements OnModuleInit, OnModuleDestroy {
     const { chat, dryRun } = options;
     const label = `${chat.userName} (${chat.ownerName}, ${chat.id})`;
     if (dryRun) {
-      this.logger.log(`[dry-run] would move ${label} to "${TARGET_STATUS}"`);
+      this.logger.log(`[dry-run] would tag "${FACEBOOK_TAG}" and move ${label} to "${TARGET_STATUS}"`);
       return;
+    }
+    // Tag first: if the status change fails, the chat stays in "Новий" and is retried
+    if (!chat.tags.includes(FACEBOOK_TAG)) {
+      await this.sitniks.setChatTags({ chatId: chat.id, tags: [...chat.tags, FACEBOOK_TAG] });
     }
     await this.sitniks.changeChatStatus({ chatId: chat.id, status: TARGET_STATUS });
     this.logger.log(`Moved ${label} to "${TARGET_STATUS}"`);
