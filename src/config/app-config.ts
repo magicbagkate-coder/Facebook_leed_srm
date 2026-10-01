@@ -8,10 +8,12 @@ type AppConfig = {
   dryRun: boolean;
   instagramDryRun: boolean;
   pollIntervalMs: number;
+  requestTimeoutMs: number;
 };
 
 const DEFAULT_PORT = 5000;
 const POLL_INTERVAL_MS = 60_000;
+const REQUEST_TIMEOUT_MS = 20_000;
 const SITNIKS_BASE_URL = 'https://crm.sitniks.com/open-api';
 
 function readRequired(name: string): string {
@@ -29,4 +31,5 @@ export const appConfig: AppConfig = {
   dryRun: process.env.DRY_RUN !== 'false',
   instagramDryRun: process.env.INSTAGRAM_DRY_RUN !== 'false',
   pollIntervalMs: POLL_INTERVAL_MS,
+  requestTimeoutMs: REQUEST_TIMEOUT_MS,
 };

@@ -102,19 +102,29 @@ export class SitniksClient {
     await this.waitTurn();
     const url = new URL(appConfig.sitniksBaseUrl + request.path);
     if (request.query) url.search = request.query.toString();
-    const response = await fetch(url, {
-      method: request.method,
-      headers: {
-        Authorization: `Bearer ${appConfig.sitniksApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: request.body,
-    });
+    const response = await this.fetchWithTimeout(url, request);
     this.rememberRateLimit(response.status);
     if (!response.ok) {
       throw new SitniksError(`${request.method} ${request.path} failed with ${response.status}`, response.status);
     }
     return response;
+  }
+
+  /** A hanging CRM must not freeze our checks: give up after requestTimeoutMs. */
+  private async fetchWithTimeout(url: URL, request: SitniksRequest): Promise<Response> {
+    try {
+      return await fetch(url, {
+        method: request.method,
+        headers: {
+          Authorization: `Bearer ${appConfig.sitniksApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: request.body,
+        signal: AbortSignal.timeout(appConfig.requestTimeoutMs),
+      });
+    } catch {
+      throw new SitniksError(`${request.method} ${request.path} timed out or failed to connect`, 0);
+    }
   }
 
   private isLiveClientMessage(message: SitniksMessage, userId: string): boolean {

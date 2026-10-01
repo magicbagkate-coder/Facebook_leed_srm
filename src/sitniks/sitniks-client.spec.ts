@@ -1,0 +1,85 @@
+import { createServer, type Server } from 'node:http';
+import type { AddressInfo } from 'node:net';
+
+import { appConfig } from '#app/config/app-config.js';
+import { SitniksClient } from '#app/sitniks/sitniks-client.js';
+import { SitniksError } from '#app/sitniks/sitniks-error.js';
+
+type FakeCrm = {
+  server: Server;
+  baseUrl: string;
+};
+
+function startFakeCrm(respond: (res: import('node:http').ServerResponse) => void): Promise<FakeCrm> {
+  return new Promise((resolve) => {
+    const server = createServer((incoming, res) => {
+      incoming.resume();
+      respond(res);
+    });
+    server.listen(0, '127.0.0.1', () => {
+      const { port } = server.address() as AddressInfo;
+      resolve({ server, baseUrl: `http://127.0.0.1:${port}` });
+    });
+  });
+}
+
+function stopFakeCrm(crm: FakeCrm): Promise<void> {
+  return new Promise((resolve) => {
+    crm.server.closeAllConnections();
+    crm.server.close(() => resolve());
+  });
+}
+
+describe('SitniksClient against a fake CRM', () => {
+  const originalBaseUrl = appConfig.sitniksBaseUrl;
+  const originalTimeout = appConfig.requestTimeoutMs;
+
+  afterEach(() => {
+    appConfig.sitniksBaseUrl = originalBaseUrl;
+    appConfig.requestTimeoutMs = originalTimeout;
+  });
+
+  it('gives up when the CRM hangs instead of waiting forever', async () => {
+    const crm = await startFakeCrm(() => undefined);
+    appConfig.sitniksBaseUrl = crm.baseUrl;
+    appConfig.requestTimeoutMs = 150;
+    await expect(new SitniksClient().hasMessages({ chatId: 'c1', isComment: true })).rejects.toThrow(
+      /timed out/,
+    );
+    await stopFakeCrm(crm);
+  });
+
+  it('stops sending requests for a while after HTTP 429', async () => {
+    let hits = 0;
+    const crm = await startFakeCrm((res) => {
+      hits += 1;
+      res.statusCode = 429;
+      res.end('{}');
+    });
+    appConfig.sitniksBaseUrl = crm.baseUrl;
+    const client = new SitniksClient();
+    await expect(client.hasMessages({ chatId: 'c1', isComment: true })).rejects.toBeInstanceOf(SitniksError);
+    await expect(client.hasMessages({ chatId: 'c1', isComment: true })).rejects.toBeInstanceOf(SitniksError);
+    expect(hits).toBe(1);
+    await stopFakeCrm(crm);
+  });
+
+  it('reads messages newest first and detects a live client message', async () => {
+    const crm = await startFakeCrm((res) => {
+      res.setHeader('Content-Type', 'application/json');
+      res.end(
+        JSON.stringify({
+          'data': [
+            { sentBy: 'client-1', text: 'дізнатись ціну', createdAt: '2026-10-01T10:00:00Z' },
+            { sentBy: 'page-1', createdAt: '2026-10-01T09:59:00Z' },
+          ],
+        }),
+      );
+    });
+    appConfig.sitniksBaseUrl = crm.baseUrl;
+    const client = new SitniksClient();
+    expect(await client.hasClientMessage({ chatId: 'c1', userId: 'client-1' })).toBe(false);
+    expect(await client.latestMessages({ chatId: 'c1', limit: 2 })).toHaveLength(2);
+    await stopFakeCrm(crm);
+  });
+});
