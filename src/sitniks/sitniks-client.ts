@@ -18,7 +18,7 @@ import type {
 import { SitniksError } from '#app/sitniks/sitniks-error.js';
 
 // Chat endpoints allow 10 requests per 10 seconds; keep a safe gap between all requests
-const REQUEST_GAP_MS = 1_100;
+const REQUEST_GAP_MS = 1_500;
 const PAGE_SIZE = 50;
 const HTTP_TOO_MANY_REQUESTS = 429;
 
@@ -111,7 +111,7 @@ export class SitniksClient {
     });
     this.rememberRateLimit(response.status);
     if (!response.ok) {
-      throw new SitniksError(`${request.method} ${request.path} failed`, response.status);
+      throw new SitniksError(`${request.method} ${request.path} failed with ${response.status}`, response.status);
     }
     return response;
   }
