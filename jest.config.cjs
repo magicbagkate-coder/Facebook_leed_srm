@@ -9,5 +9,6 @@ module.exports = {
   transform: {
     '^.+\\.ts$': ['ts-jest', { useESM: true, tsconfig: '<rootDir>/../tsconfig.json' }],
   },
+  setupFiles: ['<rootDir>/../jest.setup.cjs'],
   testEnvironment: 'node',
 };

@@ -94,6 +94,11 @@ export default tseslint.config(
     rules: { 'no-restricted-properties': 'off', 'id-denylist': 'off' },
   },
   {
+    // Field names of the external Sitniks API cannot be renamed
+    files: ['src/sitniks/*.types.ts'],
+    rules: { 'id-denylist': 'off' },
+  },
+  {
     files: ['src/**/*.spec.ts'],
     rules: { 'max-lines': 'off' },
   },
