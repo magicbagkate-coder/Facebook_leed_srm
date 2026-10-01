@@ -1,4 +1,4 @@
-import { FACEBOOK_SOURCE, WATCHED_STATUS } from '#app/monitor/monitor.constants.js';
+import { FACEBOOK_SOURCE, TARGET_STATUS, WATCHED_STATUS } from '#app/monitor/monitor.constants.js';
 import type { SitniksChat } from '#app/sitniks/sitniks.types.js';
 
 type UnknownRecord = { [key: string]: unknown };
@@ -30,12 +30,17 @@ function isNewFacebookComment(chat: UnknownRecord, message: UnknownRecord): bool
   );
 }
 
-/** Returns the chat if the webhook reports a comment in a new Facebook chat, otherwise undefined. */
-export function extractNewComment(body: unknown): SitniksChat | undefined {
-  const chat = readPart(body, 'chat');
-  const message = readPart(body, 'message');
-  if (!chat || !message) return undefined;
-  if (!isNewFacebookComment(chat, message)) return undefined;
+function isFacebookClientReply(chat: UnknownRecord, message: UnknownRecord): boolean {
+  return (
+    readText(chat, 'userId') !== '' &&
+    readText(message, 'commentId') === '' &&
+    readText(message, 'sentBy') === readText(chat, 'userId') &&
+    readText(chat, 'status') === TARGET_STATUS &&
+    readText(chat, 'initialSource') === FACEBOOK_SOURCE
+  );
+}
+
+function buildChat(chat: UnknownRecord): SitniksChat {
   return {
     id: readText(chat, 'id'),
     initialSource: readText(chat, 'initialSource'),
@@ -45,4 +50,20 @@ export function extractNewComment(body: unknown): SitniksChat | undefined {
     status: readText(chat, 'status'),
     tags: readTags(chat),
   };
+}
+
+/** Returns the chat if the webhook reports a comment in a new Facebook chat, otherwise undefined. */
+export function extractNewComment(body: unknown): SitniksChat | undefined {
+  const chat = readPart(body, 'chat');
+  const message = readPart(body, 'message');
+  if (!chat || !message) return undefined;
+  return isNewFacebookComment(chat, message) ? buildChat(chat) : undefined;
+}
+
+/** Returns the chat if the client wrote in direct in a Facebook chat that is in "Фейсбук". */
+export function extractClientReply(body: unknown): SitniksChat | undefined {
+  const chat = readPart(body, 'chat');
+  const message = readPart(body, 'message');
+  if (!chat || !message) return undefined;
+  return isFacebookClientReply(chat, message) ? buildChat(chat) : undefined;
 }
