@@ -10,6 +10,7 @@ export const NEW_BOT_STATUS = 'Новий БОТ';
 export const PRODUCT_STATUS = 'Вибір товару';
 export const NEW_BOT_TAG = 'НБ';
 export const PRICE_BUTTON_TEXT = 'дізнатись ціну';
+export const PRESS_HERE_TEXT = 'натисніть тут';
 // Client must stay silent this long after our price reply before the chat moves to "Новий БОТ"
 export const SILENCE_MS = 60_000;
 export const START_FLOW_INTERVAL_MS = 60_000;

@@ -57,9 +57,15 @@ describe('isBotWaiting', () => {
     expect(check([photoOld, priceReply, otherButton])).toBe(false);
   });
 
-  it('is false when a manager was in the dialog', () => {
+  it('is true for the press-here prompt even after a dialog with a manager', () => {
     const managerReply = buildMessage({ from: 'manager', ageSeconds: 200, text: 'Вітаю' });
-    expect(check([pressHere, managerReply])).toBe(false);
+    expect(check([pressHere, managerReply])).toBe(true);
+  });
+
+  it('is false for another bot message after a dialog with a manager', () => {
+    const managerReply = buildMessage({ from: 'manager', ageSeconds: 200, text: 'Вітаю' });
+    const managerSoon = buildMessage({ from: 'page', ageSeconds: 100, text: 'Менеджер зараз підключиться' });
+    expect(check([managerSoon, managerReply])).toBe(false);
   });
 });
 

@@ -1,4 +1,9 @@
-import { NEWEST_MESSAGES, PRICE_BUTTON_TEXT, SILENCE_MS } from '#app/monitor/monitor.constants.js';
+import {
+  NEWEST_MESSAGES,
+  PRESS_HERE_TEXT,
+  PRICE_BUTTON_TEXT,
+  SILENCE_MS,
+} from '#app/monitor/monitor.constants.js';
 import type { SitniksMessage } from '#app/sitniks/sitniks.types.js';
 
 type Sender = 'client' | 'manager' | 'page';
@@ -24,6 +29,10 @@ function isPriceButton(text: string | undefined): boolean {
   return (text ?? '').toLowerCase().includes(PRICE_BUTTON_TEXT);
 }
 
+function isPressHerePrompt(text: string | undefined): boolean {
+  return (text ?? '').toLowerCase().includes(PRESS_HERE_TEXT);
+}
+
 /**
  * The newest messages are only from the page or bot. They start either a chat that consists
  * of bot messages only, or a flow where the client pressed the price button.
@@ -36,15 +45,16 @@ function isBotFlow(options: LatestSenderOptions): boolean {
 }
 
 /**
- * Rule 1: our bot wrote last (the price reply with a photo, or the "press here" prompt)
- * and the client has done nothing for SILENCE_MS. Messages are ordered newest first.
+ * Rule 1: our bot wrote last and the client has done nothing for SILENCE_MS.
+ * The "press here" prompt counts even after an earlier dialog with a manager;
+ * other bot messages count only inside a price flow or a bot-only chat. Messages are ordered newest first.
  */
 export function isBotWaiting(options: BotWaitingOptions): boolean {
   const { messages, userId, nowMs } = options;
   if (messages.length === 0) return false;
   if (senderOf(messages[0], userId) !== 'page') return false;
   if (nowMs - Date.parse(messages[0].createdAt) < SILENCE_MS) return false;
-  return isBotFlow({ messages, userId });
+  return isPressHerePrompt(messages[0].text) || isBotFlow({ messages, userId });
 }
 
 /** Rule 2: the newest message in the chat was written by the client (text or a button press). */
