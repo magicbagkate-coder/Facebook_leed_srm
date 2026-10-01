@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { appConfig } from '#app/config/app-config.js';
+import { isPriceButton } from '#app/monitor/bot-texts.js';
 import { RATE_LIMIT_PAUSE_MS } from '#app/monitor/monitor.constants.js';
 import type {
   ChangeStatusOptions,
@@ -60,7 +61,7 @@ export class SitniksClient {
     return page.data;
   }
 
-  /** True if the client wrote at least one direct message; messages from our side are ignored. */
+  /** True if the client wrote a live direct message; our messages and bot button presses are ignored. */
   async hasClientMessage(options: ClientMessageOptions): Promise<boolean> {
     const path = `/chats/${options.chatId}/messages`;
     let skip = 0;
@@ -68,7 +69,7 @@ export class SitniksClient {
     do {
       const query = new URLSearchParams({ limit: String(PAGE_SIZE), skip: String(skip) });
       page = await this.getJson<ChatMessagesResponse>({ method: 'GET', path, query });
-      if (page.data.some((message) => message.sentBy === options.userId)) return true;
+      if (page.data.some((message) => this.isLiveClientMessage(message, options.userId))) return true;
       skip += page.data.length;
     } while (page.data.length === PAGE_SIZE);
     return false;
@@ -114,6 +115,10 @@ export class SitniksClient {
       throw new SitniksError(`${request.method} ${request.path} failed with ${response.status}`, response.status);
     }
     return response;
+  }
+
+  private isLiveClientMessage(message: SitniksMessage, userId: string): boolean {
+    return message.sentBy === userId && !isPriceButton(message.text);
   }
 
   /** After a 429 the API blocks the key for a minute, so we stop sending requests meanwhile. */

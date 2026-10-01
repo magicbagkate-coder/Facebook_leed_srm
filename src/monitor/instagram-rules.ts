@@ -1,9 +1,5 @@
-import {
-  NEWEST_MESSAGES,
-  PRESS_HERE_TEXT,
-  PRICE_BUTTON_TEXT,
-  SILENCE_MS,
-} from '#app/monitor/monitor.constants.js';
+import { isPressHerePrompt, isPriceButton } from '#app/monitor/bot-texts.js';
+import { NEWEST_MESSAGES, SILENCE_MS } from '#app/monitor/monitor.constants.js';
 import type { SitniksMessage } from '#app/sitniks/sitniks.types.js';
 
 type Sender = 'client' | 'manager' | 'page';
@@ -23,14 +19,6 @@ type LatestSenderOptions = {
 function senderOf(message: SitniksMessage, userId: string): Sender {
   if (message.sentBy === userId) return 'client';
   return message.managerName ? 'manager' : 'page';
-}
-
-function isPriceButton(text: string | undefined): boolean {
-  return (text ?? '').toLowerCase().includes(PRICE_BUTTON_TEXT);
-}
-
-function isPressHerePrompt(text: string | undefined): boolean {
-  return (text ?? '').toLowerCase().includes(PRESS_HERE_TEXT);
 }
 
 /**
