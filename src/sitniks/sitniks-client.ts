@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { appConfig } from '#app/config/app-config.js';
-import { isPriceButton } from '#app/monitor/bot-texts.js';
+import { isButtonOrLike } from '#app/monitor/bot-texts.js';
 import type {
   ChangeStatusOptions,
   ChatListResponse,
@@ -135,7 +135,7 @@ export class SitniksClient {
   }
 
   private isLiveClientMessage(message: SitniksMessage, userId: string): boolean {
-    return message.sentBy === userId && !isPriceButton(message.text);
+    return message.sentBy === userId && !isButtonOrLike(message);
   }
 
   private async waitUntilUnblocked(): Promise<void> {

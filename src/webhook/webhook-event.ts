@@ -1,4 +1,4 @@
-import { isThanksOrRefusal } from '#app/monitor/bot-texts.js';
+import { isButtonOrLike, isThanksOrRefusal } from '#app/monitor/bot-texts.js';
 import { FACEBOOK_SOURCE, TARGET_STATUS, WATCHED_STATUS } from '#app/monitor/monitor.constants.js';
 import type { SitniksChat } from '#app/sitniks/sitniks.types.js';
 
@@ -39,12 +39,21 @@ function isClientDirect(chat: UnknownRecord, message: UnknownRecord): boolean {
   );
 }
 
+function isRealReply(message: UnknownRecord): boolean {
+  const content = {
+    text: readText(message, 'text'),
+    messageType: readText(message, 'messageType'),
+    attachmentUrl: readText(message, 'attachmentUrl'),
+  };
+  return !isButtonOrLike(content) && !isThanksOrRefusal(content.text);
+}
+
 function isFacebookClientReply(chat: UnknownRecord, message: UnknownRecord): boolean {
   return (
     isClientDirect(chat, message) &&
     readText(chat, 'status') === TARGET_STATUS &&
     readText(chat, 'initialSource') === FACEBOOK_SOURCE &&
-    !isThanksOrRefusal(readText(message, 'text'))
+    isRealReply(message)
   );
 }
 

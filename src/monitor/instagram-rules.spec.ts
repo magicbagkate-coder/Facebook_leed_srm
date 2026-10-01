@@ -75,6 +75,20 @@ describe('isClientLast', () => {
     expect(isClientLast({ messages: [reaction, photoOld], userId: USER_ID })).toBe(true);
   });
 
+  it('is false when the client only pressed the price button, even twice', () => {
+    const press = buildMessage({ from: 'client', ageSeconds: 5, text: 'дізнатись ціну' });
+    expect(isClientLast({ messages: [press, press, pressHere], userId: USER_ID })).toBe(false);
+  });
+
+  it('is false when the client only sent a like', () => {
+    const like = {
+      ...buildMessage({ from: 'client', ageSeconds: 5 }),
+      messageType: 'image',
+      attachmentUrl: 'https://scontent.xx.fbcdn.net/v/t39.1997-6/39178562_1505_n.png',
+    };
+    expect(isClientLast({ messages: [like, photoOld], userId: USER_ID })).toBe(false);
+  });
+
   it('is false when the client only said thanks or refused', () => {
     const thanks = buildMessage({ from: 'client', ageSeconds: 5, text: 'Ні,не потрібно' });
     expect(isClientLast({ messages: [thanks, photoOld], userId: USER_ID })).toBe(false);

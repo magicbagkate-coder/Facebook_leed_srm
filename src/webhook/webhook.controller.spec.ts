@@ -27,6 +27,8 @@ type EventOptions = {
   commentId?: string;
   from?: 'client' | 'page';
   text?: string;
+  messageType?: string;
+  attachmentUrl?: string;
 };
 
 function buildEvent(options: EventOptions): unknown {
@@ -44,6 +46,8 @@ function buildEvent(options: EventOptions): unknown {
       sentBy: options.from === 'page' ? 'page-1' : 'client-1',
       text: options.text ?? 'Ціна',
       commentId: options.commentId,
+      messageType: options.messageType,
+      attachmentUrl: options.attachmentUrl,
     },
   };
 }
@@ -85,6 +89,16 @@ describe('WebhookController', () => {
     { name: 'a comment in a chat from another source', body: buildEvent({ commentId: 'c-1', source: 'instagram' }) },
     { name: 'our own message in "Фейсбук"', body: buildEvent({ status: 'Фейсбук', from: 'page' }) },
     { name: 'a client message in "Фейсбук" of another source', body: buildEvent({ status: 'Фейсбук', source: 'instagram' }) },
+    { name: 'the price button in "Фейсбук"', body: buildEvent({ status: 'Фейсбук', text: 'дізнатись ціну' }) },
+    {
+      name: 'a like in "Фейсбук"',
+      body: buildEvent({
+        status: 'Фейсбук',
+        text: '',
+        messageType: 'image',
+        attachmentUrl: 'https://scontent.xx.fbcdn.net/v/t39.1997-6/39178562_1505_n.png',
+      }),
+    },
     { name: 'a short thanks in "Фейсбук"', body: buildEvent({ status: 'Фейсбук', text: 'Дякую!' }) },
     { name: 'a body without chat and message', body: { test: 'ping' } },
     { name: 'an empty body', body: undefined },

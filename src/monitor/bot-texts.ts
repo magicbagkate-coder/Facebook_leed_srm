@@ -24,6 +24,29 @@ const COURTESY_PHRASES = [
 ];
 const MAX_COURTESY_LENGTH = 30;
 
+type MessageContent = {
+  text?: string;
+  messageType?: string;
+  attachmentUrl?: string;
+};
+
+// Facebook serves its built-in stickers (the "like" thumb) from this CDN path; real photos use another one
+const FACEBOOK_STICKER_PATH = '/t39.1997-6/';
+
+/** The "like" sticker: an image without text that comes from the Facebook sticker CDN path. */
+export function isLikeSticker(content: MessageContent): boolean {
+  return (
+    content.messageType === 'image' &&
+    (content.text ?? '') === '' &&
+    (content.attachmentUrl ?? '').includes(FACEBOOK_STICKER_PATH)
+  );
+}
+
+/** A button press of our bot or a like: it is not a live message from the client. */
+export function isButtonOrLike(content: MessageContent): boolean {
+  return isPriceButton(content.text) || isLikeSticker(content);
+}
+
 /** A short thanks or refusal without a question: the manager decides what to do with such a chat. */
 export function isThanksOrRefusal(text: string | undefined): boolean {
   const value = (text ?? '').toLowerCase();

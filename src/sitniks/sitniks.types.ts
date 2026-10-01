@@ -14,6 +14,7 @@ export type SitniksMessage = {
   messageType?: string;
   managerName?: string;
   text?: string;
+  attachmentUrl?: string;
 };
 
 export type ChatListResponse = {
