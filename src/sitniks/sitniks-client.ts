@@ -1,15 +1,18 @@
 import { Injectable } from '@nestjs/common';
 
 import { appConfig } from '#app/config/app-config.js';
+import { RATE_LIMIT_PAUSE_MS } from '#app/monitor/monitor.constants.js';
 import type {
   ChangeStatusOptions,
   ChatListResponse,
   ChatMessagesResponse,
   ClientMessageOptions,
   HasMessagesOptions,
+  LatestMessagesOptions,
   ListChatsOptions,
   SetTagsOptions,
   SitniksChat,
+  SitniksMessage,
   SitniksRequest,
 } from '#app/sitniks/sitniks.types.js';
 import { SitniksError } from '#app/sitniks/sitniks-error.js';
@@ -17,10 +20,12 @@ import { SitniksError } from '#app/sitniks/sitniks-error.js';
 // Chat endpoints allow 10 requests per 10 seconds; keep a safe gap between all requests
 const REQUEST_GAP_MS = 1_100;
 const PAGE_SIZE = 50;
+const HTTP_TOO_MANY_REQUESTS = 429;
 
 @Injectable()
 export class SitniksClient {
   private nextSlotAt = 0;
+  private blockedUntil = 0;
 
   async listChats(options: ListChatsOptions): Promise<SitniksChat[]> {
     const chats: SitniksChat[] = [];
@@ -32,6 +37,7 @@ export class SitniksClient {
         skip: String(chats.length),
         limit: String(PAGE_SIZE),
       });
+      if (options.startDate) query.set('startDate', options.startDate);
       const page = await this.getJson<ChatListResponse>({ method: 'GET', path: '/chats', query });
       chats.push(...page.data);
       isLastPage = page.data.length === 0 || chats.length >= page.count;
@@ -44,6 +50,14 @@ export class SitniksClient {
     const path = `/chats/${options.chatId}/messages`;
     const page = await this.getJson<ChatMessagesResponse>({ method: 'GET', path, query });
     return page.data.length > 0;
+  }
+
+  /** Newest direct messages first (the API returns the newest message at index 0). */
+  async latestMessages(options: LatestMessagesOptions): Promise<SitniksMessage[]> {
+    const query = new URLSearchParams({ limit: String(options.limit) });
+    const path = `/chats/${options.chatId}/messages`;
+    const page = await this.getJson<ChatMessagesResponse>({ method: 'GET', path, query });
+    return page.data;
   }
 
   /** True if the client wrote at least one direct message; messages from our side are ignored. */
@@ -83,6 +97,7 @@ export class SitniksClient {
   }
 
   private async send(request: SitniksRequest): Promise<Response> {
+    this.assertNotBlocked();
     await this.waitTurn();
     const url = new URL(appConfig.sitniksBaseUrl + request.path);
     if (request.query) url.search = request.query.toString();
@@ -94,10 +109,22 @@ export class SitniksClient {
       },
       body: request.body,
     });
+    this.rememberRateLimit(response.status);
     if (!response.ok) {
       throw new SitniksError(`${request.method} ${request.path} failed`, response.status);
     }
     return response;
+  }
+
+  /** After a 429 the API blocks the key for a minute, so we stop sending requests meanwhile. */
+  private assertNotBlocked(): void {
+    if (Date.now() >= this.blockedUntil) return;
+    throw new SitniksError('Paused after rate limit', HTTP_TOO_MANY_REQUESTS);
+  }
+
+  private rememberRateLimit(httpStatus: number): void {
+    if (httpStatus !== HTTP_TOO_MANY_REQUESTS) return;
+    this.blockedUntil = Date.now() + RATE_LIMIT_PAUSE_MS;
   }
 
   private async waitTurn(): Promise<void> {

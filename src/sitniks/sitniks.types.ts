@@ -10,6 +10,10 @@ export type SitniksChat = {
 
 export type SitniksMessage = {
   sentBy: string;
+  createdAt: string;
+  messageType?: string;
+  managerName?: string;
+  text?: string;
 };
 
 export type ChatListResponse = {
@@ -24,6 +28,12 @@ export type ChatMessagesResponse = {
 export type ListChatsOptions = {
   status: string;
   initialSource: string;
+  startDate?: string;
+};
+
+export type LatestMessagesOptions = {
+  chatId: string;
+  limit: number;
 };
 
 export type HasMessagesOptions = {

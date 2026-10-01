@@ -6,6 +6,7 @@ type AppConfig = {
   webhookToken: string;
   sitniksBaseUrl: string;
   dryRun: boolean;
+  instagramDryRun: boolean;
   pollIntervalMs: number;
 };
 
@@ -26,5 +27,6 @@ export const appConfig: AppConfig = {
   sitniksBaseUrl: SITNIKS_BASE_URL,
   // Safe by default: chats are changed only when DRY_RUN=false
   dryRun: process.env.DRY_RUN !== 'false',
+  instagramDryRun: process.env.INSTAGRAM_DRY_RUN !== 'false',
   pollIntervalMs: POLL_INTERVAL_MS,
 };
