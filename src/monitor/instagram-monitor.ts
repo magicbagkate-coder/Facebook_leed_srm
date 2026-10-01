@@ -27,7 +27,7 @@ type ChatMove = {
 /**
  * Instagram rules:
  * 1. "Новий": the client pressed the price button and stayed silent after our reply -> "Новий БОТ" + tag "НБ".
- * 2. "Новий БОТ": the client wrote or pressed something -> "Вибір товару".
+ * 2. "Новий БОТ": the client wrote or pressed something -> "Вибір товару" (tag "НБ" is added if missing).
  */
 @Injectable()
 export class InstagramMonitor implements OnModuleInit, OnModuleDestroy {
@@ -85,7 +85,7 @@ export class InstagramMonitor implements OnModuleInit, OnModuleDestroy {
     for (const chat of chats) {
       const messages = await this.sitniks.latestMessages({ chatId: chat.id, limit: 1 });
       if (!isClientLast({ messages, userId: chat.userId })) continue;
-      await this.moveChat({ chat, status: PRODUCT_STATUS });
+      await this.moveChat({ chat, status: PRODUCT_STATUS, tag: NEW_BOT_TAG });
       movedIds.push(chat.id);
     }
     this.lastBotScanAt = scanStartedAt;

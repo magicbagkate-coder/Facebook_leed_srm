@@ -85,9 +85,18 @@ describe('InstagramMonitor', () => {
     const fake = new FakeSitniksClient([chat], clientReply);
     const movedIds = await buildMonitor(fake).moveRepliedChats();
     expect(movedIds).toEqual(['chat-1']);
-    expect(fake.tagCalls).toEqual([]);
+    expect(fake.tagCalls).toEqual([{ chatId: 'chat-1', tags: ['Reels', 'НБ'] }]);
     expect(fake.statusCalls).toEqual([{ chatId: 'chat-1', status: 'Вибір товару' }]);
     expect(fake.listCalls[0].startDate).toBeDefined();
+  });
+
+  it('does not add the НБ tag twice when moving to "Вибір товару"', async () => {
+    appConfig.instagramDryRun = false;
+    const taggedChat = { ...chat, tags: ['НБ'] };
+    const fake = new FakeSitniksClient([taggedChat], clientReply);
+    await buildMonitor(fake).moveRepliedChats();
+    expect(fake.tagCalls).toEqual([]);
+    expect(fake.statusCalls).toEqual([{ chatId: 'chat-1', status: 'Вибір товару' }]);
   });
 
   it('changes nothing in dry-run mode', async () => {
