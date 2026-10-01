@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 
 import { appConfig } from '#app/config/app-config.js';
 import { isPriceButton } from '#app/monitor/bot-texts.js';
-import { RATE_LIMIT_PAUSE_MS } from '#app/monitor/monitor.constants.js';
 import type {
   ChangeStatusOptions,
   ChatListResponse,
@@ -97,17 +96,25 @@ export class SitniksClient {
     return (await response.json()) as T;
   }
 
+  /** After a 429 we wait out the block and repeat the request once, so a pass is not lost halfway. */
   private async send(request: SitniksRequest): Promise<Response> {
-    this.assertNotBlocked();
+    const response = await this.sendOnce(request);
+    if (response.status !== HTTP_TOO_MANY_REQUESTS) return this.ensureOk(response, request);
+    this.blockedUntil = Date.now() + appConfig.rateLimitPauseMs;
+    return this.ensureOk(await this.sendOnce(request), request);
+  }
+
+  private async sendOnce(request: SitniksRequest): Promise<Response> {
+    await this.waitUntilUnblocked();
     await this.waitTurn();
     const url = new URL(appConfig.sitniksBaseUrl + request.path);
     if (request.query) url.search = request.query.toString();
-    const response = await this.fetchWithTimeout(url, request);
-    this.rememberRateLimit(response.status);
-    if (!response.ok) {
-      throw new SitniksError(`${request.method} ${request.path} failed with ${response.status}`, response.status);
-    }
-    return response;
+    return this.fetchWithTimeout(url, request);
+  }
+
+  private ensureOk(response: Response, request: SitniksRequest): Response {
+    if (response.ok) return response;
+    throw new SitniksError(`${request.method} ${request.path} failed with ${response.status}`, response.status);
   }
 
   /** A hanging CRM must not freeze our checks: give up after requestTimeoutMs. */
@@ -131,15 +138,10 @@ export class SitniksClient {
     return message.sentBy === userId && !isPriceButton(message.text);
   }
 
-  /** After a 429 the API blocks the key for a minute, so we stop sending requests meanwhile. */
-  private assertNotBlocked(): void {
-    if (Date.now() >= this.blockedUntil) return;
-    throw new SitniksError('Paused after rate limit', HTTP_TOO_MANY_REQUESTS);
-  }
-
-  private rememberRateLimit(httpStatus: number): void {
-    if (httpStatus !== HTTP_TOO_MANY_REQUESTS) return;
-    this.blockedUntil = Date.now() + RATE_LIMIT_PAUSE_MS;
+  private async waitUntilUnblocked(): Promise<void> {
+    const waitMs = this.blockedUntil - Date.now();
+    if (waitMs <= 0) return;
+    await new Promise<void>((resolve) => setTimeout(resolve, waitMs));
   }
 
   private async waitTurn(): Promise<void> {

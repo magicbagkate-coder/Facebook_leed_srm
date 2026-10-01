@@ -16,7 +16,7 @@ export const SILENCE_MS = 60_000;
 export const START_FLOW_INTERVAL_MS = 60_000;
 export const BOT_FLOW_INTERVAL_MS = 300_000;
 export const BOT_OVERLAP_MS = 600_000;
-export const BOT_FIRST_LOOKBACK_MS = 86_400_000;
+export const BOT_FIRST_LOOKBACK_MS = 21_600_000;
 export const NEWEST_MESSAGES = 50;
 
 // Pause after a 429 response: the API blocks for 1 minute, add a margin

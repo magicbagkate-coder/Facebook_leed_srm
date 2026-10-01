@@ -33,10 +33,12 @@ function stopFakeCrm(crm: FakeCrm): Promise<void> {
 describe('SitniksClient against a fake CRM', () => {
   const originalBaseUrl = appConfig.sitniksBaseUrl;
   const originalTimeout = appConfig.requestTimeoutMs;
+  const originalPause = appConfig.rateLimitPauseMs;
 
   afterEach(() => {
     appConfig.sitniksBaseUrl = originalBaseUrl;
     appConfig.requestTimeoutMs = originalTimeout;
+    appConfig.rateLimitPauseMs = originalPause;
   });
 
   it('gives up when the CRM hangs instead of waiting forever', async () => {
@@ -49,7 +51,23 @@ describe('SitniksClient against a fake CRM', () => {
     await stopFakeCrm(crm);
   });
 
-  it('stops sending requests for a while after HTTP 429', async () => {
+  it('waits out an HTTP 429 and repeats the request once', async () => {
+    let hits = 0;
+    const crm = await startFakeCrm((res) => {
+      hits += 1;
+      res.setHeader('Content-Type', 'application/json');
+      res.statusCode = hits === 1 ? 429 : 200;
+      res.end(JSON.stringify({ 'data': [{ sentBy: 'client-1', createdAt: '2026-10-01T10:00:00Z' }] }));
+    });
+    appConfig.sitniksBaseUrl = crm.baseUrl;
+    appConfig.rateLimitPauseMs = 50;
+    const messages = await new SitniksClient().latestMessages({ chatId: 'c1', limit: 1 });
+    expect(messages).toHaveLength(1);
+    expect(hits).toBe(2);
+    await stopFakeCrm(crm);
+  });
+
+  it('fails after a second HTTP 429 instead of looping', async () => {
     let hits = 0;
     const crm = await startFakeCrm((res) => {
       hits += 1;
@@ -57,10 +75,11 @@ describe('SitniksClient against a fake CRM', () => {
       res.end('{}');
     });
     appConfig.sitniksBaseUrl = crm.baseUrl;
-    const client = new SitniksClient();
-    await expect(client.hasMessages({ chatId: 'c1', isComment: true })).rejects.toBeInstanceOf(SitniksError);
-    await expect(client.hasMessages({ chatId: 'c1', isComment: true })).rejects.toBeInstanceOf(SitniksError);
-    expect(hits).toBe(1);
+    appConfig.rateLimitPauseMs = 50;
+    await expect(new SitniksClient().hasMessages({ chatId: 'c1', isComment: true })).rejects.toBeInstanceOf(
+      SitniksError,
+    );
+    expect(hits).toBe(2);
     await stopFakeCrm(crm);
   });
 

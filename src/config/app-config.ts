@@ -9,11 +9,14 @@ type AppConfig = {
   instagramDryRun: boolean;
   pollIntervalMs: number;
   requestTimeoutMs: number;
+  rateLimitPauseMs: number;
 };
 
 const DEFAULT_PORT = 5000;
 const POLL_INTERVAL_MS = 60_000;
 const REQUEST_TIMEOUT_MS = 20_000;
+// Sitniks blocks the key for a minute after HTTP 429; add a margin
+const RATE_LIMIT_PAUSE_MS = 70_000;
 const SITNIKS_BASE_URL = 'https://crm.sitniks.com/open-api';
 
 function readRequired(name: string): string {
@@ -32,4 +35,5 @@ export const appConfig: AppConfig = {
   instagramDryRun: process.env.INSTAGRAM_DRY_RUN !== 'false',
   pollIntervalMs: POLL_INTERVAL_MS,
   requestTimeoutMs: REQUEST_TIMEOUT_MS,
+  rateLimitPauseMs: RATE_LIMIT_PAUSE_MS,
 };
