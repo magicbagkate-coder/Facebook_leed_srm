@@ -1,9 +1,9 @@
-import { PRICE_BUTTON_TEXT, SILENCE_MS } from '#app/monitor/monitor.constants.js';
+import { NEWEST_MESSAGES, PRICE_BUTTON_TEXT, SILENCE_MS } from '#app/monitor/monitor.constants.js';
 import type { SitniksMessage } from '#app/sitniks/sitniks.types.js';
 
 type Sender = 'client' | 'manager' | 'page';
 
-type PriceFlowOptions = {
+type BotWaitingOptions = {
   messages: SitniksMessage[];
   userId: string;
   nowMs: number;
@@ -25,17 +25,26 @@ function isPriceButton(text: string | undefined): boolean {
 }
 
 /**
- * Rule 1: the client pressed "дізнатись ціну", got our price reply (messages from the page
- * or bot only) and has been silent for SILENCE_MS since our last message.
- * Messages are ordered newest first.
+ * The newest messages are only from the page or bot. They start either a chat that consists
+ * of bot messages only, or a flow where the client pressed the price button.
  */
-export function isSilentAfterPrice(options: PriceFlowOptions): boolean {
+function isBotFlow(options: LatestSenderOptions): boolean {
+  const { messages, userId } = options;
+  const starterIndex = messages.findIndex((message) => senderOf(message, userId) !== 'page');
+  if (starterIndex === -1) return messages.length < NEWEST_MESSAGES;
+  return senderOf(messages[starterIndex], userId) === 'client' && isPriceButton(messages[starterIndex].text);
+}
+
+/**
+ * Rule 1: our bot wrote last (the price reply with a photo, or the "press here" prompt)
+ * and the client has done nothing for SILENCE_MS. Messages are ordered newest first.
+ */
+export function isBotWaiting(options: BotWaitingOptions): boolean {
   const { messages, userId, nowMs } = options;
-  const triggerIndex = messages.findIndex((message) => senderOf(message, userId) !== 'page');
-  if (triggerIndex < 1) return false;
-  const trigger = messages[triggerIndex];
-  if (senderOf(trigger, userId) !== 'client' || !isPriceButton(trigger.text)) return false;
-  return nowMs - Date.parse(messages[0].createdAt) >= SILENCE_MS;
+  if (messages.length === 0) return false;
+  if (senderOf(messages[0], userId) !== 'page') return false;
+  if (nowMs - Date.parse(messages[0].createdAt) < SILENCE_MS) return false;
+  return isBotFlow({ messages, userId });
 }
 
 /** Rule 2: the newest message in the chat was written by the client (text or a button press). */

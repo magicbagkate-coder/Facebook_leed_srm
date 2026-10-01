@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 
 import { appConfig } from '#app/config/app-config.js';
-import { isClientLast, isSilentAfterPrice } from '#app/monitor/instagram-rules.js';
+import { isBotWaiting,isClientLast } from '#app/monitor/instagram-rules.js';
 import { JobRunner } from '#app/monitor/job-runner.js';
 import {
   BOT_FIRST_LOOKBACK_MS,
@@ -26,7 +26,7 @@ type ChatMove = {
 
 /**
  * Instagram rules:
- * 1. "Новий": the client pressed the price button and stayed silent after our reply -> "Новий БОТ" + tag "НБ".
+ * 1. "Новий": our bot wrote last (price reply or "press here") and the client stayed silent -> "Новий БОТ" + tag "НБ".
  * 2. "Новий БОТ": the client wrote or pressed something -> "Вибір товару" (tag "НБ" is added if missing).
  */
 @Injectable()
@@ -66,7 +66,7 @@ export class InstagramMonitor implements OnModuleInit, OnModuleDestroy {
     const movedIds: string[] = [];
     for (const chat of chats) {
       const messages = await this.sitniks.latestMessages({ chatId: chat.id, limit: NEWEST_MESSAGES });
-      if (!isSilentAfterPrice({ messages, userId: chat.userId, nowMs: Date.now() })) continue;
+      if (!isBotWaiting({ messages, userId: chat.userId, nowMs: Date.now() })) continue;
       await this.moveChat({ chat, status: NEW_BOT_STATUS, tag: NEW_BOT_TAG });
       movedIds.push(chat.id);
     }

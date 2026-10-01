@@ -1,4 +1,4 @@
-import { isClientLast, isSilentAfterPrice } from '#app/monitor/instagram-rules.js';
+import { isBotWaiting, isClientLast } from '#app/monitor/instagram-rules.js';
 import type { SitniksMessage } from '#app/sitniks/sitniks.types.js';
 
 const USER_ID = 'client-1';
@@ -23,21 +23,27 @@ const priceClick = buildMessage({ from: 'client', ageSeconds: 130, text: 'Діз
 const priceReply = buildMessage({ from: 'page', ageSeconds: 125, text: 'Вітаю💛 Гарний вибір' });
 const photoOld = buildMessage({ from: 'page', ageSeconds: 120 });
 const photoFresh = buildMessage({ from: 'page', ageSeconds: 10 });
+const pressHere = buildMessage({ from: 'page', ageSeconds: 100, text: '⬇натисніть тут⬇' });
 
 function check(messages: SitniksMessage[]): boolean {
-  return isSilentAfterPrice({ messages, userId: USER_ID, nowMs: NOW_MS });
+  return isBotWaiting({ messages, userId: USER_ID, nowMs: NOW_MS });
 }
 
-describe('isSilentAfterPrice', () => {
+describe('isBotWaiting', () => {
   it('is true when the client pressed the price button and stayed silent for a minute', () => {
     expect(check([photoOld, priceReply, priceClick])).toBe(true);
+  });
+
+  it('is true when the chat has only bot messages and the client pressed nothing', () => {
+    expect(check([pressHere])).toBe(true);
   });
 
   it('is false when our last message is less than a minute old', () => {
     expect(check([photoFresh, priceReply, priceClick])).toBe(false);
   });
 
-  it('is false when there is no reply from us yet', () => {
+  it('is false for an empty chat and when the client wrote last', () => {
+    expect(check([])).toBe(false);
     expect(check([priceClick])).toBe(false);
   });
 
@@ -46,14 +52,14 @@ describe('isSilentAfterPrice', () => {
     expect(check([reaction, photoOld, priceReply, priceClick])).toBe(false);
   });
 
-  it('is false for another button', () => {
+  it('is false for a bot message that follows another button or a free text from the client', () => {
     const otherButton = buildMessage({ from: 'client', ageSeconds: 130, text: 'Дальше' });
     expect(check([photoOld, priceReply, otherButton])).toBe(false);
   });
 
-  it('is false when a manager answered', () => {
-    const managerReply = buildMessage({ from: 'manager', ageSeconds: 100, text: 'Вітаю' });
-    expect(check([managerReply, priceReply, priceClick])).toBe(false);
+  it('is false when a manager was in the dialog', () => {
+    const managerReply = buildMessage({ from: 'manager', ageSeconds: 200, text: 'Вітаю' });
+    expect(check([pressHere, managerReply])).toBe(false);
   });
 });
 
