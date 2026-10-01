@@ -26,6 +26,7 @@ type EventOptions = {
   source?: string;
   commentId?: string;
   from?: 'client' | 'page';
+  text?: string;
 };
 
 function buildEvent(options: EventOptions): unknown {
@@ -41,7 +42,7 @@ function buildEvent(options: EventOptions): unknown {
     },
     message: {
       sentBy: options.from === 'page' ? 'page-1' : 'client-1',
-      text: 'Ціна',
+      text: options.text ?? 'Ціна',
       commentId: options.commentId,
     },
   };
@@ -84,6 +85,7 @@ describe('WebhookController', () => {
     { name: 'a comment in a chat from another source', body: buildEvent({ commentId: 'c-1', source: 'instagram' }) },
     { name: 'our own message in "Фейсбук"', body: buildEvent({ status: 'Фейсбук', from: 'page' }) },
     { name: 'a client message in "Фейсбук" of another source', body: buildEvent({ status: 'Фейсбук', source: 'instagram' }) },
+    { name: 'a short thanks in "Фейсбук"', body: buildEvent({ status: 'Фейсбук', text: 'Дякую!' }) },
     { name: 'a body without chat and message', body: { test: 'ping' } },
     { name: 'an empty body', body: undefined },
   ])('ignores $name', ({ body }) => {

@@ -75,6 +75,11 @@ describe('isClientLast', () => {
     expect(isClientLast({ messages: [reaction, photoOld], userId: USER_ID })).toBe(true);
   });
 
+  it('is false when the client only said thanks or refused', () => {
+    const thanks = buildMessage({ from: 'client', ageSeconds: 5, text: 'Ні,не потрібно' });
+    expect(isClientLast({ messages: [thanks, photoOld], userId: USER_ID })).toBe(false);
+  });
+
   it('is false when the newest message is ours or the chat is empty', () => {
     expect(isClientLast({ messages: [photoOld, priceClick], userId: USER_ID })).toBe(false);
     expect(isClientLast({ messages: [], userId: USER_ID })).toBe(false);

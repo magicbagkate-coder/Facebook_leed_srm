@@ -1,4 +1,4 @@
-import { isPressHerePrompt, isPriceButton } from '#app/monitor/bot-texts.js';
+import { isPressHerePrompt, isPriceButton, isThanksOrRefusal } from '#app/monitor/bot-texts.js';
 import { NEWEST_MESSAGES, SILENCE_MS } from '#app/monitor/monitor.constants.js';
 import type { SitniksMessage } from '#app/sitniks/sitniks.types.js';
 
@@ -45,8 +45,10 @@ export function isBotWaiting(options: BotWaitingOptions): boolean {
   return isPressHerePrompt(messages[0].text) || isBotFlow({ messages, userId });
 }
 
-/** Rule 2: the newest message in the chat was written by the client (text or a button press). */
+/** Rule 2: the newest message was written by the client (text or a button) and is not just thanks or a refusal. */
 export function isClientLast(options: LatestSenderOptions): boolean {
   const [latest] = options.messages;
-  return latest !== undefined && senderOf(latest, options.userId) === 'client';
+  return (
+    latest !== undefined && senderOf(latest, options.userId) === 'client' && !isThanksOrRefusal(latest.text)
+  );
 }

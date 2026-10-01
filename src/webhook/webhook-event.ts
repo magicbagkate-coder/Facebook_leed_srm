@@ -1,3 +1,4 @@
+import { isThanksOrRefusal } from '#app/monitor/bot-texts.js';
 import { FACEBOOK_SOURCE, TARGET_STATUS, WATCHED_STATUS } from '#app/monitor/monitor.constants.js';
 import type { SitniksChat } from '#app/sitniks/sitniks.types.js';
 
@@ -30,13 +31,20 @@ function isNewFacebookComment(chat: UnknownRecord, message: UnknownRecord): bool
   );
 }
 
-function isFacebookClientReply(chat: UnknownRecord, message: UnknownRecord): boolean {
+function isClientDirect(chat: UnknownRecord, message: UnknownRecord): boolean {
   return (
     readText(chat, 'userId') !== '' &&
     readText(message, 'commentId') === '' &&
-    readText(message, 'sentBy') === readText(chat, 'userId') &&
+    readText(message, 'sentBy') === readText(chat, 'userId')
+  );
+}
+
+function isFacebookClientReply(chat: UnknownRecord, message: UnknownRecord): boolean {
+  return (
+    isClientDirect(chat, message) &&
     readText(chat, 'status') === TARGET_STATUS &&
-    readText(chat, 'initialSource') === FACEBOOK_SOURCE
+    readText(chat, 'initialSource') === FACEBOOK_SOURCE &&
+    !isThanksOrRefusal(readText(message, 'text'))
   );
 }
 
