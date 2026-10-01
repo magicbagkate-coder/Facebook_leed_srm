@@ -1,19 +1,17 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 
 import { appConfig } from '#app/config/app-config.js';
+import { JobRunner } from '#app/monitor/job-runner.js';
 import {
   FACEBOOK_SOURCE,
   FACEBOOK_TAG,
-  RATE_LIMIT_PAUSE_MS,
   TARGET_STATUS,
   WATCHED_STATUS,
 } from '#app/monitor/monitor.constants.js';
 import type { ChatVerdict, RunOptions } from '#app/monitor/monitor.types.js';
+import { reviewEach } from '#app/monitor/pass.js';
 import type { SitniksChat } from '#app/sitniks/sitniks.types.js';
 import { SitniksClient } from '#app/sitniks/sitniks-client.js';
-import { SitniksError } from '#app/sitniks/sitniks-error.js';
-
-const HTTP_TOO_MANY_REQUESTS = 429;
 
 /**
  * Moves new Facebook chats that have comments but no direct messages
@@ -24,33 +22,21 @@ export class FacebookMonitor implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(FacebookMonitor.name);
   private readonly chatsWithDirect = new Set<string>();
   private readonly reviewing = new Set<string>();
-  private timer: NodeJS.Timeout | undefined;
-  private isRunning = false;
-  private pausedUntil = 0;
+  private readonly runner = new JobRunner({
+    name: 'FacebookScan',
+    intervalMs: appConfig.pollIntervalMs,
+    run: (): Promise<unknown> => this.runOnce({ dryRun: appConfig.dryRun }),
+  });
 
   constructor(private readonly sitniks: SitniksClient) {}
 
   onModuleInit(): void {
     this.logger.log(`Monitor started, dryRun=${appConfig.dryRun}`);
-    this.timer = setInterval(() => void this.tick(), appConfig.pollIntervalMs);
-    void this.tick();
+    this.runner.start();
   }
 
   onModuleDestroy(): void {
-    clearInterval(this.timer);
-  }
-
-  /** One scheduled pass: never overlaps with the previous one and pauses after HTTP 429. */
-  async tick(): Promise<void> {
-    if (this.isBusy()) return;
-    this.isRunning = true;
-    try {
-      await this.runOnce({ dryRun: appConfig.dryRun });
-    } catch (error) {
-      this.registerFailure(error);
-    } finally {
-      this.isRunning = false;
-    }
+    this.runner.stop();
   }
 
   /** Checks all new Facebook chats and returns ids of chats that were (or would be) moved. */
@@ -59,21 +45,20 @@ export class FacebookMonitor implements OnModuleInit, OnModuleDestroy {
       status: WATCHED_STATUS,
       initialSource: FACEBOOK_SOURCE,
     });
-    const movedIds: string[] = [];
-    for (const chat of chats) {
-      const isMoved = await this.checkChat({ chat, dryRun: options.dryRun });
-      if (isMoved) movedIds.push(chat.id);
-    }
-    return movedIds;
+    const result = await reviewEach({
+      chats,
+      logger: this.logger,
+      review: (chat) => this.checkChat({ chat, dryRun: options.dryRun }),
+    });
+    return result.movedIds;
   }
 
   /** Reviews one chat reported by a webhook; errors are logged and never thrown. */
   async reviewChat(chat: SitniksChat): Promise<void> {
-    if (this.isPaused()) return;
     try {
       await this.checkChat({ chat, dryRun: appConfig.dryRun });
     } catch (error) {
-      this.registerFailure(error);
+      this.logger.error(error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -122,21 +107,5 @@ export class FacebookMonitor implements OnModuleInit, OnModuleDestroy {
     }
     await this.sitniks.changeChatStatus({ chatId: chat.id, status: TARGET_STATUS });
     this.logger.log(`Moved ${label} to "${TARGET_STATUS}"`);
-  }
-
-  private isBusy(): boolean {
-    return this.isRunning || this.isPaused();
-  }
-
-  private isPaused(): boolean {
-    return Date.now() < this.pausedUntil;
-  }
-
-  private registerFailure(error: unknown): void {
-    this.logger.error(error instanceof Error ? error.message : String(error));
-    if (!(error instanceof SitniksError)) return;
-    if (error.httpStatus !== HTTP_TOO_MANY_REQUESTS) return;
-    this.pausedUntil = Date.now() + RATE_LIMIT_PAUSE_MS;
-    this.logger.warn('Rate limited by Sitniks, pausing for 70 seconds');
   }
 }

@@ -5,14 +5,13 @@ import { moveChatTo } from '#app/monitor/chat-mover.js';
 import { isClientLast } from '#app/monitor/instagram-rules.js';
 import { JobRunner } from '#app/monitor/job-runner.js';
 import {
-  BOT_FIRST_LOOKBACK_MS,
   BOT_FLOW_INTERVAL_MS,
-  BOT_OVERLAP_MS,
   FACEBOOK_SOURCE,
   FACEBOOK_TAG,
   PRODUCT_STATUS,
   TARGET_STATUS,
 } from '#app/monitor/monitor.constants.js';
+import { reviewEach, scanStartIso } from '#app/monitor/pass.js';
 import type { SitniksChat } from '#app/sitniks/sitniks.types.js';
 import { SitniksClient } from '#app/sitniks/sitniks-client.js';
 
@@ -24,7 +23,7 @@ import { SitniksClient } from '#app/sitniks/sitniks-client.js';
 @Injectable()
 export class FacebookReplyMonitor implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(FacebookReplyMonitor.name);
-  private lastScanAt = Date.now() - BOT_FIRST_LOOKBACK_MS;
+  private lastScanAt = 0;
   private readonly runner = new JobRunner({
     name: 'FacebookReplyScan',
     intervalMs: BOT_FLOW_INTERVAL_MS,
@@ -47,17 +46,22 @@ export class FacebookReplyMonitor implements OnModuleInit, OnModuleDestroy {
     const chats = await this.sitniks.listChats({
       status: TARGET_STATUS,
       initialSource: FACEBOOK_SOURCE,
-      startDate: new Date(this.lastScanAt - BOT_OVERLAP_MS).toISOString(),
+      startDate: scanStartIso(this.lastScanAt),
     });
-    const movedIds: string[] = [];
-    for (const chat of chats) {
-      const messages = await this.sitniks.latestMessages({ chatId: chat.id, limit: 1 });
-      if (!isClientLast({ messages, userId: chat.userId })) continue;
-      await this.moveChat(chat);
-      movedIds.push(chat.id);
-    }
-    this.lastScanAt = scanStartedAt;
-    return movedIds;
+    const result = await reviewEach({
+      chats,
+      logger: this.logger,
+      review: (chat) => this.reviewReplied(chat),
+    });
+    if (result.failedCount === 0) this.lastScanAt = scanStartedAt;
+    return result.movedIds;
+  }
+
+  private async reviewReplied(chat: SitniksChat): Promise<boolean> {
+    const messages = await this.sitniks.latestMessages({ chatId: chat.id, limit: 1 });
+    if (!isClientLast({ messages, userId: chat.userId })) return false;
+    await this.moveChat(chat);
+    return true;
   }
 
   /** The webhook already says that the client wrote in direct, so no extra check is needed. */

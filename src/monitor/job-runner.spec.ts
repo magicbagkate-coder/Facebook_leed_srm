@@ -40,3 +40,37 @@ describe('JobRunner', () => {
     expect(maxActive).toBe(1);
   });
 });
+
+describe('JobRunner report', () => {
+  it('counts skipped passes and reports a successful pass', async () => {
+    const runner = new JobRunner({
+      name: 'ReportedJob',
+      intervalMs: 10,
+      run: async (): Promise<void> => wait(50),
+    });
+    runner.start();
+    await wait(130);
+    runner.stop();
+    const report = runner.report();
+    expect(report.skippedPasses).toBeGreaterThan(0);
+    expect(report.lastError).toBeNull();
+    expect(report.isStale).toBe(false);
+  });
+
+  it('shows the last error and marks a job that never succeeds as stale', async () => {
+    const runner = new JobRunner({
+      name: 'BrokenJob',
+      intervalMs: 5,
+      run: async (): Promise<void> => {
+        throw new Error('CRM is down');
+      },
+    });
+    runner.start();
+    await wait(60);
+    runner.stop();
+    const report = runner.report();
+    expect(report.lastError).toBe('CRM is down');
+    expect(report.lastSuccessAgoSeconds).toBeNull();
+    expect(report.isStale).toBe(true);
+  });
+});

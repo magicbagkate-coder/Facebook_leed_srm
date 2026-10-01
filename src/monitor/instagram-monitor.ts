@@ -1,12 +1,11 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 
 import { appConfig } from '#app/config/app-config.js';
-import { isBotWaiting,isClientLast } from '#app/monitor/instagram-rules.js';
+import { moveChatTo } from '#app/monitor/chat-mover.js';
+import { isBotWaiting, isClientLast } from '#app/monitor/instagram-rules.js';
 import { JobRunner } from '#app/monitor/job-runner.js';
 import {
-  BOT_FIRST_LOOKBACK_MS,
   BOT_FLOW_INTERVAL_MS,
-  BOT_OVERLAP_MS,
   INSTAGRAM_SOURCE,
   NEW_BOT_STATUS,
   NEW_BOT_TAG,
@@ -15,14 +14,9 @@ import {
   START_FLOW_INTERVAL_MS,
   WATCHED_STATUS,
 } from '#app/monitor/monitor.constants.js';
+import { reviewEach, scanStartIso } from '#app/monitor/pass.js';
 import type { SitniksChat } from '#app/sitniks/sitniks.types.js';
 import { SitniksClient } from '#app/sitniks/sitniks-client.js';
-
-type ChatMove = {
-  chat: SitniksChat;
-  status: string;
-  tag?: string;
-};
 
 /**
  * Instagram rules:
@@ -32,17 +26,17 @@ type ChatMove = {
 @Injectable()
 export class InstagramMonitor implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(InstagramMonitor.name);
-  private lastBotScanAt = Date.now() - BOT_FIRST_LOOKBACK_MS;
+  private lastBotScanAt = 0;
   private readonly runners: JobRunner[] = [
     new JobRunner({
       name: 'InstagramStartFlow',
       intervalMs: START_FLOW_INTERVAL_MS,
-      run: () => this.moveSilentChats(),
+      run: (): Promise<unknown> => this.moveSilentChats(),
     }),
     new JobRunner({
       name: 'InstagramBotFlow',
       intervalMs: BOT_FLOW_INTERVAL_MS,
-      run: () => this.moveRepliedChats(),
+      run: (): Promise<unknown> => this.moveRepliedChats(),
     }),
   ];
 
@@ -63,46 +57,56 @@ export class InstagramMonitor implements OnModuleInit, OnModuleDestroy {
       status: WATCHED_STATUS,
       initialSource: INSTAGRAM_SOURCE,
     });
-    const movedIds: string[] = [];
-    for (const chat of chats) {
-      const messages = await this.sitniks.latestMessages({ chatId: chat.id, limit: NEWEST_MESSAGES });
-      if (!isBotWaiting({ messages, userId: chat.userId, nowMs: Date.now() })) continue;
-      await this.moveChat({ chat, status: NEW_BOT_STATUS, tag: NEW_BOT_TAG });
-      movedIds.push(chat.id);
-    }
-    return movedIds;
+    const result = await reviewEach({
+      chats,
+      logger: this.logger,
+      review: (chat) => this.reviewSilent(chat),
+    });
+    return result.movedIds;
   }
 
-  /** Rule 2. Looks only at chats with recent activity: a client reply always changes the last message time. */
+  /**
+   * Rule 2. Looks only at chats with recent activity: a client reply always changes the last message time.
+   * The activity window moves forward only after a pass without errors, so a failed chat is retried.
+   */
   async moveRepliedChats(): Promise<string[]> {
     const scanStartedAt = Date.now();
     const chats = await this.sitniks.listChats({
       status: NEW_BOT_STATUS,
       initialSource: INSTAGRAM_SOURCE,
-      startDate: new Date(this.lastBotScanAt - BOT_OVERLAP_MS).toISOString(),
+      startDate: scanStartIso(this.lastBotScanAt),
     });
-    const movedIds: string[] = [];
-    for (const chat of chats) {
-      const messages = await this.sitniks.latestMessages({ chatId: chat.id, limit: 1 });
-      if (!isClientLast({ messages, userId: chat.userId })) continue;
-      await this.moveChat({ chat, status: PRODUCT_STATUS, tag: NEW_BOT_TAG });
-      movedIds.push(chat.id);
-    }
-    this.lastBotScanAt = scanStartedAt;
-    return movedIds;
+    const result = await reviewEach({
+      chats,
+      logger: this.logger,
+      review: (chat) => this.reviewReplied(chat),
+    });
+    if (result.failedCount === 0) this.lastBotScanAt = scanStartedAt;
+    return result.movedIds;
   }
 
-  private async moveChat(move: ChatMove): Promise<void> {
-    const { chat, status, tag } = move;
-    const label = `${chat.userName} (${chat.ownerName}, ${chat.id})`;
-    if (appConfig.instagramDryRun) {
-      this.logger.log(`[dry-run] would move ${label} to "${status}"${tag ? ` with tag "${tag}"` : ''}`);
-      return;
-    }
-    if (tag && !chat.tags.includes(tag)) {
-      await this.sitniks.setChatTags({ chatId: chat.id, tags: [...chat.tags, tag] });
-    }
-    await this.sitniks.changeChatStatus({ chatId: chat.id, status });
-    this.logger.log(`Moved ${label} to "${status}"`);
+  private async reviewSilent(chat: SitniksChat): Promise<boolean> {
+    const messages = await this.sitniks.latestMessages({ chatId: chat.id, limit: NEWEST_MESSAGES });
+    if (!isBotWaiting({ messages, userId: chat.userId, nowMs: Date.now() })) return false;
+    await this.moveChat({ chat, status: NEW_BOT_STATUS });
+    return true;
+  }
+
+  private async reviewReplied(chat: SitniksChat): Promise<boolean> {
+    const messages = await this.sitniks.latestMessages({ chatId: chat.id, limit: 1 });
+    if (!isClientLast({ messages, userId: chat.userId })) return false;
+    await this.moveChat({ chat, status: PRODUCT_STATUS });
+    return true;
+  }
+
+  private async moveChat(options: { chat: SitniksChat; status: string }): Promise<void> {
+    await moveChatTo({
+      sitniks: this.sitniks,
+      logger: this.logger,
+      chat: options.chat,
+      status: options.status,
+      tag: NEW_BOT_TAG,
+      dryRun: appConfig.instagramDryRun,
+    });
   }
 }
