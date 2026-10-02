@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import { appConfig } from '#app/config/app-config.js';
 import { isButtonOrLike } from '#app/monitor/bot-texts.js';
+import { currentLane } from '#app/sitniks/request-lane.js';
 import type {
   ChangeStatusOptions,
   ChatListResponse,
@@ -17,14 +18,14 @@ import type {
 } from '#app/sitniks/sitniks.types.js';
 import { SitniksError } from '#app/sitniks/sitniks-error.js';
 
-// Chat endpoints allow 10 requests per 10 seconds; keep a safe gap between all requests
-const REQUEST_GAP_MS = 1_500;
 const PAGE_SIZE = 50;
 const HTTP_TOO_MANY_REQUESTS = 429;
 
 @Injectable()
 export class SitniksClient {
   private nextSlotAt = 0;
+  private isServing = false;
+  private readonly waiting: { resolve: () => void; isHigh: boolean }[] = [];
   private blockedUntil = 0;
 
   async listChats(options: ListChatsOptions): Promise<SitniksChat[]> {
@@ -144,11 +145,31 @@ export class SitniksClient {
     await new Promise<void>((resolve) => setTimeout(resolve, waitMs));
   }
 
-  private async waitTurn(): Promise<void> {
-    const now = Date.now();
-    const startAt = Math.max(now, this.nextSlotAt);
-    this.nextSlotAt = startAt + REQUEST_GAP_MS;
-    if (startAt === now) return;
-    await new Promise<void>((resolve) => setTimeout(resolve, startAt - now));
+  /** Joins the queue of requests; urgent ("high") requests are served before background ("low") ones. */
+  private waitTurn(): Promise<void> {
+    const isHigh = currentLane() === 'high';
+    return new Promise<void>((resolve) => {
+      this.waiting.push({ resolve, isHigh });
+      void this.serveQueue();
+    });
+  }
+
+  private async serveQueue(): Promise<void> {
+    if (this.isServing) return;
+    this.isServing = true;
+    while (this.waiting.length > 0) {
+      await this.sleepUntilFreeSlot();
+      const highIndex = this.waiting.findIndex((waiter) => waiter.isHigh);
+      const [next] = this.waiting.splice(Math.max(highIndex, 0), 1);
+      this.nextSlotAt = Date.now() + appConfig.requestGapMs;
+      next.resolve();
+    }
+    this.isServing = false;
+  }
+
+  private async sleepUntilFreeSlot(): Promise<void> {
+    const waitMs = this.nextSlotAt - Date.now();
+    if (waitMs <= 0) return;
+    await new Promise<void>((resolve) => setTimeout(resolve, waitMs));
   }
 }

@@ -39,6 +39,7 @@ export class UrgentMonitor implements OnModuleInit, OnModuleDestroy {
     name: 'UrgentScan',
     intervalMs: URGENT_INTERVAL_MS,
     firstRunDelayMs: URGENT_SCAN_DELAY_MS,
+    lane: 'low',
     run: (): Promise<unknown> => this.tagWaitingChats(),
   });
 

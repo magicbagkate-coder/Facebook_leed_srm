@@ -1,11 +1,15 @@
 import { Logger } from '@nestjs/common';
 
+import { laneStorage, type RequestLane } from '#app/sitniks/request-lane.js';
+
 type JobOptions = {
   name: string;
   intervalMs: number;
   run: () => Promise<unknown>;
   // Heavy jobs start later, so that after a restart they do not block the urgent 30-second checks
   firstRunDelayMs?: number;
+  // Heavy background scans use the "low" lane, so urgent jobs get the request queue first
+  lane?: RequestLane;
 };
 
 export type JobReport = {
@@ -80,7 +84,7 @@ export class JobRunner {
     this.isRunning = true;
     this.passStartedAt = Date.now();
     try {
-      await this.options.run();
+      await laneStorage.run(this.options.lane ?? 'high', () => this.options.run());
       this.lastSuccessAt = Date.now();
       this.lastError = undefined;
     } catch (error) {

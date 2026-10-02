@@ -29,6 +29,7 @@ export class FacebookReplyMonitor implements OnModuleInit, OnModuleDestroy {
     name: 'FacebookReplyScan',
     intervalMs: BOT_FLOW_INTERVAL_MS,
     firstRunDelayMs: REPLY_SCAN_DELAY_MS,
+    lane: 'low',
     run: (): Promise<unknown> => this.moveRepliedChats(),
   });
 

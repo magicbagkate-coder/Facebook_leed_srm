@@ -2,6 +2,7 @@ import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
 import { appConfig } from '#app/config/app-config.js';
+import { laneStorage } from '#app/sitniks/request-lane.js';
 import { SitniksClient } from '#app/sitniks/sitniks-client.js';
 import { SitniksError } from '#app/sitniks/sitniks-error.js';
 
@@ -10,11 +11,11 @@ type FakeCrm = {
   baseUrl: string;
 };
 
-function startFakeCrm(respond: (res: import('node:http').ServerResponse) => void): Promise<FakeCrm> {
+function startFakeCrm(respond: (res: import('node:http').ServerResponse, url: string) => void): Promise<FakeCrm> {
   return new Promise((resolve) => {
     const server = createServer((incoming, res) => {
       incoming.resume();
-      respond(res);
+      respond(res, incoming.url ?? '');
     });
     server.listen(0, '127.0.0.1', () => {
       const { port } = server.address() as AddressInfo;
@@ -34,11 +35,13 @@ describe('SitniksClient against a fake CRM', () => {
   const originalBaseUrl = appConfig.sitniksBaseUrl;
   const originalTimeout = appConfig.requestTimeoutMs;
   const originalPause = appConfig.rateLimitPauseMs;
+  const originalGap = appConfig.requestGapMs;
 
   afterEach(() => {
     appConfig.sitniksBaseUrl = originalBaseUrl;
     appConfig.requestTimeoutMs = originalTimeout;
     appConfig.rateLimitPauseMs = originalPause;
+    appConfig.requestGapMs = originalGap;
   });
 
   it('gives up when the CRM hangs instead of waiting forever', async () => {
@@ -80,6 +83,25 @@ describe('SitniksClient against a fake CRM', () => {
       SitniksError,
     );
     expect(hits).toBe(2);
+    await stopFakeCrm(crm);
+  });
+
+  it('serves urgent requests before queued background requests', async () => {
+    const order: string[] = [];
+    const crm = await startFakeCrm((res, url) => {
+      order.push(url);
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ 'data': [] }));
+    });
+    appConfig.sitniksBaseUrl = crm.baseUrl;
+    appConfig.requestGapMs = 80;
+    const client = new SitniksClient();
+    const read = (chatId: string): Promise<unknown> => client.latestMessages({ chatId, limit: 1 });
+    const first = read('first');
+    const background = laneStorage.run('low', () => read('background'));
+    const urgent = laneStorage.run('high', () => read('urgent'));
+    await Promise.all([first, background, urgent]);
+    expect(order.map((path) => path.split('/')[2])).toEqual(['first', 'urgent', 'background']);
     await stopFakeCrm(crm);
   });
 

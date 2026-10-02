@@ -39,6 +39,7 @@ export class InstagramMonitor implements OnModuleInit, OnModuleDestroy {
       name: 'InstagramBotFlow',
       intervalMs: BOT_FLOW_INTERVAL_MS,
       firstRunDelayMs: BOT_SCAN_DELAY_MS,
+      lane: 'low',
       run: (): Promise<unknown> => this.moveRepliedChats(),
     }),
   ];
