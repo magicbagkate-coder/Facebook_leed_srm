@@ -1,10 +1,14 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 
 import { appConfig } from '#app/config/app-config.js';
+import { moveChatTo } from '#app/monitor/chat-mover.js';
+import { isRepliedAfterPrice } from '#app/monitor/instagram-rules.js';
 import { JobRunner } from '#app/monitor/job-runner.js';
 import {
   FACEBOOK_SOURCE,
   FACEBOOK_TAG,
+  NEWEST_MESSAGES,
+  PRODUCT_STATUS,
   TARGET_STATUS,
   WATCHED_STATUS,
 } from '#app/monitor/monitor.constants.js';
@@ -14,13 +18,15 @@ import type { SitniksChat } from '#app/sitniks/sitniks.types.js';
 import { SitniksClient } from '#app/sitniks/sitniks-client.js';
 
 /**
- * Moves new Facebook chats that have comments but no direct messages
- * from the "Новий" status to the "Фейсбук" status.
+ * New Facebook chats:
+ * - a comment and no live direct message from the client -> "Фейсбук" + tag "ФБ";
+ * - the client replied after the price button and no manager answered -> "Вибір товару" + tag "ФБ".
  */
 @Injectable()
 export class FacebookMonitor implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(FacebookMonitor.name);
-  private readonly chatsWithDirect = new Set<string>();
+  // chat id -> time of its last message when the verdict cannot change without a new message
+  private readonly settled = new Map<string, string>();
   private readonly reviewing = new Set<string>();
   private readonly runner = new JobRunner({
     name: 'FacebookScan',
@@ -62,10 +68,10 @@ export class FacebookMonitor implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  /** Skips chats already known to have client messages or already being reviewed right now. */
+  /** Skips chats already judged (until a new message arrives) or already being reviewed right now. */
   private async checkChat(options: { chat: SitniksChat; dryRun: boolean }): Promise<boolean> {
     const { chat } = options;
-    if (this.chatsWithDirect.has(chat.id) || this.reviewing.has(chat.id)) return false;
+    if (this.isSettled(chat) || this.reviewing.has(chat.id)) return false;
     this.reviewing.add(chat.id);
     try {
       return await this.evaluateChat(options);
@@ -75,16 +81,39 @@ export class FacebookMonitor implements OnModuleInit, OnModuleDestroy {
   }
 
   private async evaluateChat(options: { chat: SitniksChat; dryRun: boolean }): Promise<boolean> {
-    const { chat } = options;
+    const { chat, dryRun } = options;
     const verdict = await this.judgeChat(chat);
-    if (verdict === 'has-direct') this.chatsWithDirect.add(chat.id);
-    if (verdict !== 'move') return false;
-    await this.moveChat(options);
+    if (verdict === 'has-direct') this.settled.set(chat.id, chat.lastMessageCreatedAt ?? '');
+    const status = this.targetStatus(verdict);
+    if (!status) return false;
+    await moveChatTo({
+      sitniks: this.sitniks,
+      logger: this.logger,
+      chat,
+      status,
+      tag: FACEBOOK_TAG,
+      dryRun,
+    });
     return true;
   }
 
-  /** Direct messages written only by our side count as "no direct messages". */
+  private targetStatus(verdict: ChatVerdict): string | undefined {
+    if (verdict === 'move') return TARGET_STATUS;
+    return verdict === 'replied' ? PRODUCT_STATUS : undefined;
+  }
+
+  private isSettled(chat: SitniksChat): boolean {
+    const key = chat.lastMessageCreatedAt;
+    return key !== undefined && this.settled.get(chat.id) === key;
+  }
+
+  /**
+   * The client replied after the price button -> "replied". Otherwise a comment and no live
+   * direct message from the client -> "move" (messages written only by our side do not count).
+   */
   private async judgeChat(chat: SitniksChat): Promise<ChatVerdict> {
+    const messages = await this.sitniks.latestMessages({ chatId: chat.id, limit: NEWEST_MESSAGES });
+    if (isRepliedAfterPrice({ messages, userId: chat.userId })) return 'replied';
     const hasClientDirect = await this.sitniks.hasClientMessage({
       chatId: chat.id,
       userId: chat.userId,
@@ -92,20 +121,5 @@ export class FacebookMonitor implements OnModuleInit, OnModuleDestroy {
     if (hasClientDirect) return 'has-direct';
     const hasComments = await this.sitniks.hasMessages({ chatId: chat.id, isComment: true });
     return hasComments ? 'move' : 'no-comments';
-  }
-
-  private async moveChat(options: { chat: SitniksChat; dryRun: boolean }): Promise<void> {
-    const { chat, dryRun } = options;
-    const label = `${chat.userName} (${chat.ownerName}, ${chat.id})`;
-    if (dryRun) {
-      this.logger.log(`[dry-run] would tag "${FACEBOOK_TAG}" and move ${label} to "${TARGET_STATUS}"`);
-      return;
-    }
-    // Tag first: if the status change fails, the chat stays in "Новий" and is retried
-    if (!chat.tags.includes(FACEBOOK_TAG)) {
-      await this.sitniks.setChatTags({ chatId: chat.id, tags: [...chat.tags, FACEBOOK_TAG] });
-    }
-    await this.sitniks.changeChatStatus({ chatId: chat.id, status: TARGET_STATUS });
-    this.logger.log(`Moved ${label} to "${TARGET_STATUS}"`);
   }
 }
