@@ -6,6 +6,7 @@ import { isBotWaiting, isClientLast, isRepliedAfterPrice } from '#app/monitor/in
 import { JobRunner } from '#app/monitor/job-runner.js';
 import {
   BOT_FLOW_INTERVAL_MS,
+  BOT_SCAN_DELAY_MS,
   INSTAGRAM_SOURCE,
   NEW_BOT_STATUS,
   NEW_BOT_TAG,
@@ -37,6 +38,7 @@ export class InstagramMonitor implements OnModuleInit, OnModuleDestroy {
     new JobRunner({
       name: 'InstagramBotFlow',
       intervalMs: BOT_FLOW_INTERVAL_MS,
+      firstRunDelayMs: BOT_SCAN_DELAY_MS,
       run: (): Promise<unknown> => this.moveRepliedChats(),
     }),
   ];

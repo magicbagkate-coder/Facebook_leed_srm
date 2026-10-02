@@ -11,6 +11,7 @@ import {
   URGENT_INTERVAL_MS,
   URGENT_LOOKBACK_MS,
   URGENT_MAX_CHECKS,
+  URGENT_SCAN_DELAY_MS,
   URGENT_TAG,
   WATCHED_STATUS,
 } from '#app/monitor/monitor.constants.js';
@@ -37,6 +38,7 @@ export class UrgentMonitor implements OnModuleInit, OnModuleDestroy {
   private readonly runner = new JobRunner({
     name: 'UrgentScan',
     intervalMs: URGENT_INTERVAL_MS,
+    firstRunDelayMs: URGENT_SCAN_DELAY_MS,
     run: (): Promise<unknown> => this.tagWaitingChats(),
   });
 

@@ -9,6 +9,7 @@ import {
   FACEBOOK_SOURCE,
   FACEBOOK_TAG,
   PRODUCT_STATUS,
+  REPLY_SCAN_DELAY_MS,
   TARGET_STATUS,
 } from '#app/monitor/monitor.constants.js';
 import { reviewEach, scanStartIso } from '#app/monitor/pass.js';
@@ -27,6 +28,7 @@ export class FacebookReplyMonitor implements OnModuleInit, OnModuleDestroy {
   private readonly runner = new JobRunner({
     name: 'FacebookReplyScan',
     intervalMs: BOT_FLOW_INTERVAL_MS,
+    firstRunDelayMs: REPLY_SCAN_DELAY_MS,
     run: (): Promise<unknown> => this.moveRepliedChats(),
   });
 

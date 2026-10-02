@@ -4,6 +4,8 @@ type JobOptions = {
   name: string;
   intervalMs: number;
   run: () => Promise<unknown>;
+  // Heavy jobs start later, so that after a restart they do not block the urgent 30-second checks
+  firstRunDelayMs?: number;
 };
 
 export type JobReport = {
@@ -31,6 +33,7 @@ export class JobRunner {
   private readonly logger: Logger;
   private readonly createdAt = Date.now();
   private timer: NodeJS.Timeout | undefined;
+  private firstRunTimer: NodeJS.Timeout | undefined;
   private isRunning = false;
   private passStartedAt = 0;
   private passes = 0;
@@ -46,11 +49,12 @@ export class JobRunner {
 
   start(): void {
     this.timer = setInterval(() => void this.tick(), this.options.intervalMs);
-    void this.tick();
+    this.firstRunTimer = setTimeout(() => void this.tick(), this.options.firstRunDelayMs ?? 0);
   }
 
   stop(): void {
     clearInterval(this.timer);
+    clearTimeout(this.firstRunTimer);
   }
 
   report(): JobReport {
