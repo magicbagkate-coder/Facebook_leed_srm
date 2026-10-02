@@ -13,7 +13,7 @@ type AppConfig = {
 };
 
 const DEFAULT_PORT = 5000;
-const POLL_INTERVAL_MS = 60_000;
+const POLL_INTERVAL_MS = 30_000;
 const REQUEST_TIMEOUT_MS = 20_000;
 // Sitniks blocks the key for a minute after HTTP 429; add a margin
 const RATE_LIMIT_PAUSE_MS = 70_000;

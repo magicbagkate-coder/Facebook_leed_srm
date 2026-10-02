@@ -13,7 +13,7 @@ export const PRICE_BUTTON_TEXT = 'дізнатись ціну';
 export const PRESS_HERE_TEXT = 'натисніть тут';
 // Client must stay silent this long after our price reply before the chat moves to "Новий БОТ"
 export const SILENCE_MS = 60_000;
-export const START_FLOW_INTERVAL_MS = 60_000;
+export const START_FLOW_INTERVAL_MS = 30_000;
 export const BOT_FLOW_INTERVAL_MS = 300_000;
 export const BOT_OVERLAP_MS = 600_000;
 export const BOT_FIRST_LOOKBACK_MS = 21_600_000;
