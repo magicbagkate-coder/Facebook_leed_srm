@@ -6,6 +6,7 @@ export type SitniksChat = {
   userName: string;
   status: string;
   tags: string[];
+  lastMessageCreatedAt?: string;
 };
 
 export type SitniksMessage = {

@@ -1,5 +1,5 @@
 import { isButtonOrLike, isPressHerePrompt, isPriceButton, isThanksOrRefusal } from '#app/monitor/bot-texts.js';
-import { NEWEST_MESSAGES, SILENCE_MS } from '#app/monitor/monitor.constants.js';
+import { NEWEST_MESSAGES, SILENCE_MS, URGENT_AFTER_MS } from '#app/monitor/monitor.constants.js';
 import type { SitniksMessage } from '#app/sitniks/sitniks.types.js';
 
 type Sender = 'client' | 'manager' | 'page';
@@ -59,6 +59,22 @@ export function isBotWaiting(options: BotWaitingOptions): boolean {
 
 function isRealReply(message: SitniksMessage, userId: string): boolean {
   return senderOf(message, userId) === 'client' && !isButtonOrLike(message) && !isThanksOrRefusal(message.text);
+}
+
+export type WaitVerdict = 'urgent' | 'young' | 'fine';
+
+/**
+ * Rule 4: the client wrote a real message and no manager has answered since.
+ * "urgent" after URGENT_AFTER_MS, "young" while it is still fresh, "fine" when a manager answered
+ * or the client wrote nothing that needs an answer. Messages are ordered newest first.
+ */
+export function judgeWaiting(options: BotWaitingOptions): WaitVerdict {
+  const { messages, userId, nowMs } = options;
+  const clientIndex = messages.findIndex((message) => isRealReply(message, userId));
+  if (clientIndex === -1) return 'fine';
+  const managerIndex = messages.findIndex((message) => senderOf(message, userId) === 'manager');
+  if (managerIndex !== -1 && managerIndex < clientIndex) return 'fine';
+  return nowMs - Date.parse(messages[clientIndex].createdAt) >= URGENT_AFTER_MS ? 'urgent' : 'young';
 }
 
 /**

@@ -7,6 +7,7 @@ type AppConfig = {
   sitniksBaseUrl: string;
   dryRun: boolean;
   instagramDryRun: boolean;
+  urgentDryRun: boolean;
   pollIntervalMs: number;
   requestTimeoutMs: number;
   rateLimitPauseMs: number;
@@ -33,6 +34,7 @@ export const appConfig: AppConfig = {
   // Safe by default: chats are changed only when DRY_RUN=false
   dryRun: process.env.DRY_RUN !== 'false',
   instagramDryRun: process.env.INSTAGRAM_DRY_RUN !== 'false',
+  urgentDryRun: process.env.URGENT_DRY_RUN !== 'false',
   pollIntervalMs: POLL_INTERVAL_MS,
   requestTimeoutMs: REQUEST_TIMEOUT_MS,
   rateLimitPauseMs: RATE_LIMIT_PAUSE_MS,

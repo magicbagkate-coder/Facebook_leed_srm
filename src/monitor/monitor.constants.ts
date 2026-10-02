@@ -19,5 +19,13 @@ export const BOT_OVERLAP_MS = 600_000;
 export const BOT_FIRST_LOOKBACK_MS = 21_600_000;
 export const NEWEST_MESSAGES = 50;
 
+// Leads that wait for a manager
+export const URGENT_TAG = 'СРОЧНО';
+export const URGENT_AFTER_MS = 1_800_000;
+export const URGENT_INTERVAL_MS = 300_000;
+export const URGENT_LOOKBACK_MS = 86_400_000;
+// At most this many chats are read per pass, so the check never floods the shared request queue
+export const URGENT_MAX_CHECKS = 20;
+
 // Pause after a 429 response: the API blocks for 1 minute, add a margin
 export const RATE_LIMIT_PAUSE_MS = 70_000;
