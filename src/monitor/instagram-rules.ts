@@ -32,17 +32,29 @@ function isBotFlow(options: LatestSenderOptions): boolean {
   return senderOf(messages[starterIndex], userId) === 'client' && isPriceButton(messages[starterIndex].text);
 }
 
+/** Our bot wrote last: the "press here" prompt counts even after a dialog with a manager, other bot messages only inside a price flow. */
+function isBotLast(options: LatestSenderOptions): boolean {
+  const { messages, userId } = options;
+  if (senderOf(messages[0], userId) !== 'page') return false;
+  return isPressHerePrompt(messages[0].text) || isBotFlow(options);
+}
+
+/** The client pressed the price button and our bot has not answered yet. */
+function isUnansweredPriceClick(options: LatestSenderOptions): boolean {
+  const [latest] = options.messages;
+  return senderOf(latest, options.userId) === 'client' && isPriceButton(latest.text);
+}
+
 /**
- * Rule 1: our bot wrote last and the client has done nothing for SILENCE_MS.
- * The "press here" prompt counts even after an earlier dialog with a manager;
- * other bot messages count only inside a price flow or a bot-only chat. Messages are ordered newest first.
+ * Rule 1: nothing has happened for SILENCE_MS and either our bot wrote last (and the client
+ * did not react) or the client pressed the price button and got no answer.
+ * Messages are ordered newest first.
  */
 export function isBotWaiting(options: BotWaitingOptions): boolean {
   const { messages, userId, nowMs } = options;
   if (messages.length === 0) return false;
-  if (senderOf(messages[0], userId) !== 'page') return false;
   if (nowMs - Date.parse(messages[0].createdAt) < SILENCE_MS) return false;
-  return isPressHerePrompt(messages[0].text) || isBotFlow({ messages, userId });
+  return isBotLast({ messages, userId }) || isUnansweredPriceClick({ messages, userId });
 }
 
 /**

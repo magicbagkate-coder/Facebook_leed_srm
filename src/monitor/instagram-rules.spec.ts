@@ -42,9 +42,21 @@ describe('isBotWaiting', () => {
     expect(check([photoFresh, priceReply, priceClick])).toBe(false);
   });
 
-  it('is false for an empty chat and when the client wrote last', () => {
+  it('is false for an empty chat and when the client wrote free text last', () => {
+    const freeText = buildMessage({ from: 'client', ageSeconds: 130, text: 'Добрий день, яка ціна?' });
     expect(check([])).toBe(false);
-    expect(check([priceClick])).toBe(false);
+    expect(check([freeText])).toBe(false);
+  });
+
+  it('is true when the client pressed the price button and got no answer for a minute', () => {
+    expect(check([priceClick])).toBe(true);
+    const secondPress = buildMessage({ from: 'client', ageSeconds: 100, text: 'дізнатись ціну' });
+    expect(check([secondPress, priceClick, pressHere])).toBe(true);
+  });
+
+  it('is false when the price button was pressed less than a minute ago', () => {
+    const freshPress = buildMessage({ from: 'client', ageSeconds: 10, text: 'дізнатись ціну' });
+    expect(check([freshPress, pressHere])).toBe(false);
   });
 
   it('is false when the client wrote something after our reply', () => {
