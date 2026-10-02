@@ -60,6 +60,13 @@ const silentFlow: SitniksMessage[] = [
   { sentBy: USER_ID, createdAt: minutesAgo(4), text: 'дізнатись ціну' },
 ];
 
+const repliedFlow: SitniksMessage[] = [
+  { sentBy: 'page', createdAt: minutesAgo(1), text: 'Зараз наш менеджер' },
+  { sentBy: USER_ID, createdAt: minutesAgo(2), text: 'так 🥰' },
+  { sentBy: 'page', createdAt: minutesAgo(3), messageType: 'image' },
+  { sentBy: USER_ID, createdAt: minutesAgo(4), text: 'дізнатись ціну' },
+];
+
 const clientReply: SitniksMessage[] = [{ sentBy: USER_ID, createdAt: minutesAgo(1), text: 'Дальше' }];
 
 function buildMonitor(fake: FakeSitniksClient): InstagramMonitor {
@@ -96,6 +103,15 @@ describe('InstagramMonitor', () => {
     const fake = new FakeSitniksClient([taggedChat], clientReply);
     await buildMonitor(fake).moveRepliedChats();
     expect(fake.tagCalls).toEqual([]);
+    expect(fake.statusCalls).toEqual([{ chatId: 'chat-1', status: 'Вибір товару' }]);
+  });
+
+  it('moves a chat in "Новий" to "Вибір товару" when the client replied after the price button', async () => {
+    appConfig.instagramDryRun = false;
+    const fake = new FakeSitniksClient([chat], repliedFlow);
+    const movedIds = await buildMonitor(fake).moveSilentChats();
+    expect(movedIds).toEqual(['chat-1']);
+    expect(fake.tagCalls).toEqual([{ chatId: 'chat-1', tags: ['Reels', 'НБ'] }]);
     expect(fake.statusCalls).toEqual([{ chatId: 'chat-1', status: 'Вибір товару' }]);
   });
 

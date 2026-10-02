@@ -1,4 +1,4 @@
-import { isBotWaiting, isClientLast } from '#app/monitor/instagram-rules.js';
+import { isBotWaiting, isClientLast, isRepliedAfterPrice } from '#app/monitor/instagram-rules.js';
 import type { SitniksMessage } from '#app/sitniks/sitniks.types.js';
 
 const USER_ID = 'client-1';
@@ -78,6 +78,34 @@ describe('isBotWaiting', () => {
     const managerReply = buildMessage({ from: 'manager', ageSeconds: 200, text: 'Вітаю' });
     const managerSoon = buildMessage({ from: 'page', ageSeconds: 100, text: 'Менеджер зараз підключиться' });
     expect(check([managerSoon, managerReply])).toBe(false);
+  });
+});
+
+describe('isRepliedAfterPrice', () => {
+  const yes = buildMessage({ from: 'client', ageSeconds: 60, text: 'так 🥰' });
+  const managerSoon = buildMessage({ from: 'page', ageSeconds: 50, text: 'Зараз наш менеджер' });
+  const check = (messages: SitniksMessage[]): boolean => isRepliedAfterPrice({ messages, userId: USER_ID });
+
+  it('is true when the client replied after the price button and no manager answered', () => {
+    expect(check([managerSoon, yes, photoOld, priceReply, priceClick])).toBe(true);
+  });
+
+  it('is false when a manager already answered', () => {
+    const managerReply = buildMessage({ from: 'manager', ageSeconds: 30, text: 'Вітаю' });
+    expect(check([managerReply, yes, photoOld, priceReply, priceClick])).toBe(false);
+  });
+
+  it('is false when the client only said thanks, refused or sent a like', () => {
+    const thanks = buildMessage({ from: 'client', ageSeconds: 60, text: 'Дякую' });
+    expect(check([thanks, photoOld, priceReply, priceClick])).toBe(false);
+  });
+
+  it('is false without a price button press (the client wrote on their own)', () => {
+    expect(check([yes, photoOld])).toBe(false);
+  });
+
+  it('is false while the client has not replied yet', () => {
+    expect(check([photoOld, priceReply, priceClick])).toBe(false);
   });
 });
 

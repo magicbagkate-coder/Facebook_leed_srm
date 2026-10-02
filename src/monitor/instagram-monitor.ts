@@ -2,7 +2,7 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 
 import { appConfig } from '#app/config/app-config.js';
 import { moveChatTo } from '#app/monitor/chat-mover.js';
-import { isBotWaiting, isClientLast } from '#app/monitor/instagram-rules.js';
+import { isBotWaiting, isClientLast, isRepliedAfterPrice } from '#app/monitor/instagram-rules.js';
 import { JobRunner } from '#app/monitor/job-runner.js';
 import {
   BOT_FLOW_INTERVAL_MS,
@@ -21,6 +21,7 @@ import { SitniksClient } from '#app/sitniks/sitniks-client.js';
 /**
  * Instagram rules:
  * 1. "Новий": our bot wrote last (price reply or "press here") and the client stayed silent -> "Новий БОТ" + tag "НБ".
+ * 1b. "Новий": after the price button the client wrote a real reply and no manager answered -> "Вибір товару" + tag "НБ".
  * 2. "Новий БОТ": the client wrote or pressed something -> "Вибір товару" (tag "НБ" is added if missing).
  */
 @Injectable()
@@ -87,6 +88,10 @@ export class InstagramMonitor implements OnModuleInit, OnModuleDestroy {
 
   private async reviewSilent(chat: SitniksChat): Promise<boolean> {
     const messages = await this.sitniks.latestMessages({ chatId: chat.id, limit: NEWEST_MESSAGES });
+    if (isRepliedAfterPrice({ messages, userId: chat.userId })) {
+      await this.moveChat({ chat, status: PRODUCT_STATUS });
+      return true;
+    }
     if (!isBotWaiting({ messages, userId: chat.userId, nowMs: Date.now() })) return false;
     await this.moveChat({ chat, status: NEW_BOT_STATUS });
     return true;

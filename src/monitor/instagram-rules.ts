@@ -57,6 +57,23 @@ export function isBotWaiting(options: BotWaitingOptions): boolean {
   return isBotLast({ messages, userId }) || isUnansweredPriceClick({ messages, userId });
 }
 
+function isRealReply(message: SitniksMessage, userId: string): boolean {
+  return senderOf(message, userId) === 'client' && !isButtonOrLike(message) && !isThanksOrRefusal(message.text);
+}
+
+/**
+ * Rule 3 (chat in "Новий"): after the latest price button press the client wrote a real reply
+ * (not thanks, not a refusal) and no manager has answered since. Messages are ordered newest first.
+ */
+export function isRepliedAfterPrice(options: LatestSenderOptions): boolean {
+  const { messages, userId } = options;
+  const pressIndex = messages.findIndex((message) => senderOf(message, userId) === 'client' && isPriceButton(message.text));
+  if (pressIndex === -1) return false;
+  const afterPress = messages.slice(0, pressIndex);
+  if (afterPress.some((message) => senderOf(message, userId) === 'manager')) return false;
+  return afterPress.some((message) => isRealReply(message, userId));
+}
+
 /**
  * Rule 2: the newest message was written by the client and is a real reply: not the price
  * button, not a like and not just thanks or a refusal.
