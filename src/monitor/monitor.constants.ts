@@ -19,6 +19,9 @@ export const BOT_OVERLAP_MS = 600_000;
 export const BOT_FIRST_LOOKBACK_MS = 21_600_000;
 export const NEWEST_MESSAGES = 50;
 
+// Rules look only at the dialog of the last 24 hours; older messages must not affect them
+export const DIALOG_WINDOW_MS = 86_400_000;
+
 // Leads that wait for a manager
 export const URGENT_TAG = 'СРОЧНО';
 export const URGENT_AFTER_MS = 1_800_000;

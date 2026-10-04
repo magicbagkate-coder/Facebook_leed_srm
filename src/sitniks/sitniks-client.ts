@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import { appConfig } from '#app/config/app-config.js';
 import { isButtonOrLike } from '#app/monitor/bot-texts.js';
+import { DIALOG_WINDOW_MS } from '#app/monitor/monitor.constants.js';
 import { currentLane } from '#app/sitniks/request-lane.js';
 import type {
   ChangeStatusOptions,
@@ -61,17 +62,21 @@ export class SitniksClient {
     return page.data;
   }
 
-  /** True if the client wrote a live direct message; our messages and bot button presses are ignored. */
+  /** True if the client wrote a live direct message in the last 24 hours; our messages and bot button presses are ignored. */
   async hasClientMessage(options: ClientMessageOptions): Promise<boolean> {
     const path = `/chats/${options.chatId}/messages`;
+    const cutoff = Date.now() - DIALOG_WINDOW_MS;
     let skip = 0;
     let page: ChatMessagesResponse;
+    let isInsideWindow: boolean;
     do {
       const query = new URLSearchParams({ limit: String(PAGE_SIZE), skip: String(skip) });
       page = await this.getJson<ChatMessagesResponse>({ method: 'GET', path, query });
-      if (page.data.some((message) => this.isLiveClientMessage(message, options.userId))) return true;
+      const recent = page.data.filter((message) => Date.parse(message.createdAt) >= cutoff);
+      if (recent.some((message) => this.isLiveClientMessage(message, options.userId))) return true;
       skip += page.data.length;
-    } while (page.data.length === PAGE_SIZE);
+      isInsideWindow = recent.length === page.data.length;
+    } while (page.data.length === PAGE_SIZE && isInsideWindow);
     return false;
   }
 

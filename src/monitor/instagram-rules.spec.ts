@@ -1,4 +1,4 @@
-import { isBotWaiting, isClientLast, isRepliedAfterPrice } from '#app/monitor/instagram-rules.js';
+import { isBotWaiting, isClientLast, isRepliedAfterPrice, judgeWaiting, recentMessages } from '#app/monitor/instagram-rules.js';
 import type { SitniksMessage } from '#app/sitniks/sitniks.types.js';
 
 const USER_ID = 'client-1';
@@ -84,7 +84,8 @@ describe('isBotWaiting', () => {
 describe('isRepliedAfterPrice', () => {
   const yes = buildMessage({ from: 'client', ageSeconds: 60, text: 'так 🥰' });
   const managerSoon = buildMessage({ from: 'page', ageSeconds: 50, text: 'Зараз наш менеджер' });
-  const check = (messages: SitniksMessage[]): boolean => isRepliedAfterPrice({ messages, userId: USER_ID });
+  const check = (messages: SitniksMessage[]): boolean =>
+    isRepliedAfterPrice({ messages, userId: USER_ID, nowMs: NOW_MS });
 
   it('is true when the client replied after the price button and no manager answered', () => {
     expect(check([managerSoon, yes, photoOld, priceReply, priceClick])).toBe(true);
@@ -106,6 +107,32 @@ describe('isRepliedAfterPrice', () => {
 
   it('is false while the client has not replied yet', () => {
     expect(check([photoOld, priceReply, priceClick])).toBe(false);
+  });
+});
+
+describe('only the last 24 hours count (a new bot prompt months later)', () => {
+  const monthsAgo = 60 * 24 * 150;
+  const oldPress = buildMessage({ from: 'client', ageSeconds: monthsAgo, text: 'дізнатись ціну' });
+  const oldReply = buildMessage({ from: 'client', ageSeconds: monthsAgo - 60, text: 'побачити інші моделі' });
+  const oldBot = buildMessage({ from: 'page', ageSeconds: monthsAgo - 120, text: 'Підкажіть, якого кольору?' });
+  const newPrompt = buildMessage({ from: 'page', ageSeconds: 100, text: '⬇натисніть тут⬇' });
+  const history = [newPrompt, oldBot, oldReply, oldPress];
+
+  it('keeps only the messages of the last 24 hours', () => {
+    expect(recentMessages(history, NOW_MS)).toEqual([newPrompt]);
+    expect(recentMessages([photoOld, priceReply, priceClick], NOW_MS)).toHaveLength(3);
+  });
+
+  it('does not treat an old reply as a reply to the new bot prompt', () => {
+    expect(isRepliedAfterPrice({ messages: history, userId: USER_ID, nowMs: NOW_MS })).toBe(false);
+  });
+
+  it('does not mark a chat as waiting for a manager because of an old reply', () => {
+    expect(judgeWaiting({ messages: history, userId: USER_ID, nowMs: NOW_MS })).toBe('fine');
+  });
+
+  it('moves such a chat back to the bot after the silence', () => {
+    expect(isBotWaiting({ messages: history, userId: USER_ID, nowMs: NOW_MS })).toBe(true);
   });
 });
 
