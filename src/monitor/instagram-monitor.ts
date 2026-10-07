@@ -101,8 +101,11 @@ export class InstagramMonitor implements OnModuleInit, OnModuleDestroy {
   }
 
   private async reviewReplied(chat: SitniksChat): Promise<boolean> {
-    const messages = await this.sitniks.latestMessages({ chatId: chat.id, limit: 1 });
-    if (!isClientLast({ messages, userId: chat.userId })) return false;
+    const messages = await this.sitniks.latestMessages({ chatId: chat.id, limit: NEWEST_MESSAGES });
+    // The bot often answers a button press within seconds, so the client is not always the last sender
+    const hasReaction =
+      isClientLast({ messages, userId: chat.userId }) || isRepliedAfterPrice({ messages, userId: chat.userId });
+    if (!hasReaction) return false;
     await this.moveChat({ chat, status: PRODUCT_STATUS });
     return true;
   }

@@ -115,6 +115,31 @@ describe('InstagramMonitor', () => {
     expect(fake.statusCalls).toEqual([{ chatId: 'chat-1', status: 'Вибір товару' }]);
   });
 
+  it('moves a chat from "Новий БОТ" even when the bot answered right after the client button press', async () => {
+    appConfig.instagramDryRun = false;
+    const botAnsweredLast: SitniksMessage[] = [
+      { sentBy: 'page', createdAt: minutesAgo(1), text: 'Звісно🤍 Менеджер зараз підбере' },
+      { sentBy: USER_ID, createdAt: minutesAgo(1), text: 'побачити інші моделі' },
+      { sentBy: 'page', createdAt: minutesAgo(90), messageType: 'image' },
+      { sentBy: USER_ID, createdAt: minutesAgo(91), text: 'дізнатись ціну' },
+    ];
+    const fake = new FakeSitniksClient([chat], botAnsweredLast);
+    const movedIds = await buildMonitor(fake).moveRepliedChats();
+    expect(movedIds).toEqual(['chat-1']);
+    expect(fake.statusCalls).toEqual([{ chatId: 'chat-1', status: 'Вибір товару' }]);
+  });
+
+  it('leaves a chat in "Новий БОТ" when the client only said thanks and a manager answered', async () => {
+    appConfig.instagramDryRun = false;
+    const thanksThenManager: SitniksMessage[] = [
+      { sentBy: 'page', managerName: 'Manager', createdAt: minutesAgo(1), text: 'Є питання?' },
+      { sentBy: USER_ID, createdAt: minutesAgo(5), text: 'Дякую' },
+      { sentBy: 'page', managerName: 'Manager', createdAt: minutesAgo(90), text: 'Вітаю' },
+    ];
+    const fake = new FakeSitniksClient([chat], thanksThenManager);
+    expect(await buildMonitor(fake).moveRepliedChats()).toEqual([]);
+  });
+
   it('changes nothing in dry-run mode', async () => {
     const fake = new FakeSitniksClient([chat], silentFlow);
     const movedIds = await buildMonitor(fake).moveSilentChats();

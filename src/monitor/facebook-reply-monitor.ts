@@ -2,12 +2,13 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 
 import { appConfig } from '#app/config/app-config.js';
 import { moveChatTo, tagsForMove } from '#app/monitor/chat-mover.js';
-import { isClientLast } from '#app/monitor/instagram-rules.js';
+import { isClientLast, isRepliedAfterPrice } from '#app/monitor/instagram-rules.js';
 import { JobRunner } from '#app/monitor/job-runner.js';
 import {
   BOT_FLOW_INTERVAL_MS,
   FACEBOOK_SOURCE,
   FACEBOOK_TAG,
+  NEWEST_MESSAGES,
   PRODUCT_STATUS,
   REPLY_SCAN_DELAY_MS,
   TARGET_STATUS,
@@ -61,8 +62,11 @@ export class FacebookReplyMonitor implements OnModuleInit, OnModuleDestroy {
   }
 
   private async reviewReplied(chat: SitniksChat): Promise<boolean> {
-    const messages = await this.sitniks.latestMessages({ chatId: chat.id, limit: 1 });
-    if (!isClientLast({ messages, userId: chat.userId })) return false;
+    const messages = await this.sitniks.latestMessages({ chatId: chat.id, limit: NEWEST_MESSAGES });
+    // The bot often answers a button press within seconds, so the client is not always the last sender
+    const hasReaction =
+      isClientLast({ messages, userId: chat.userId }) || isRepliedAfterPrice({ messages, userId: chat.userId });
+    if (!hasReaction) return false;
     await this.moveChat(chat);
     return true;
   }
