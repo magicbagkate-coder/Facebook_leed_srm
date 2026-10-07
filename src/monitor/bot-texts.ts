@@ -9,6 +9,16 @@ export function isPriceButton(text: string | undefined): boolean {
   return containsText(text, PRICE_BUTTON_TEXT);
 }
 
+// Our bot hands the client over to a manager: "менеджер зараз підбере інші моделі",
+// "наш менеджер відправить вам більше фото", "зараз допоможемо оформити замовлення"
+const HANDOFF_PATTERNS = [/менеджер.{0,25}(зараз|відправить|підбере|підключ)/, /зараз.{0,25}менеджер/, /допоможемо.{0,40}оформ/];
+
+/** A message of our bot that hands the client over to a manager (it answers a button press of the client). */
+export function isManagerHandoff(text: string | undefined): boolean {
+  const value = (text ?? '').toLowerCase();
+  return HANDOFF_PATTERNS.some((pattern) => pattern.test(value));
+}
+
 const COURTESY_PHRASES = [
   'не потрібно',
   'не треба',

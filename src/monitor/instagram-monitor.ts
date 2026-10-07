@@ -2,7 +2,7 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 
 import { appConfig } from '#app/config/app-config.js';
 import { moveChatTo, tagsForMove } from '#app/monitor/chat-mover.js';
-import { isBotWaiting, isClientLast, isRepliedAfterPrice } from '#app/monitor/instagram-rules.js';
+import { isBotWaiting, needsChoiceFromBot, needsChoiceFromNew } from '#app/monitor/instagram-rules.js';
 import { JobRunner } from '#app/monitor/job-runner.js';
 import {
   BOT_FLOW_INTERVAL_MS,
@@ -91,7 +91,7 @@ export class InstagramMonitor implements OnModuleInit, OnModuleDestroy {
 
   private async reviewSilent(chat: SitniksChat): Promise<boolean> {
     const messages = await this.sitniks.latestMessages({ chatId: chat.id, limit: NEWEST_MESSAGES });
-    if (isRepliedAfterPrice({ messages, userId: chat.userId })) {
+    if (needsChoiceFromNew({ messages, userId: chat.userId })) {
       await this.moveChat({ chat, status: PRODUCT_STATUS });
       return true;
     }
@@ -103,9 +103,7 @@ export class InstagramMonitor implements OnModuleInit, OnModuleDestroy {
   private async reviewReplied(chat: SitniksChat): Promise<boolean> {
     const messages = await this.sitniks.latestMessages({ chatId: chat.id, limit: NEWEST_MESSAGES });
     // The bot often answers a button press within seconds, so the client is not always the last sender
-    const hasReaction =
-      isClientLast({ messages, userId: chat.userId }) || isRepliedAfterPrice({ messages, userId: chat.userId });
-    if (!hasReaction) return false;
+    if (!needsChoiceFromBot({ messages, userId: chat.userId })) return false;
     await this.moveChat({ chat, status: PRODUCT_STATUS });
     return true;
   }

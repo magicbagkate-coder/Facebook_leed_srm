@@ -2,7 +2,7 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 
 import { appConfig } from '#app/config/app-config.js';
 import { moveChatTo, tagsForMove } from '#app/monitor/chat-mover.js';
-import { isRepliedAfterPrice } from '#app/monitor/instagram-rules.js';
+import { needsChoiceFromNew } from '#app/monitor/instagram-rules.js';
 import { JobRunner } from '#app/monitor/job-runner.js';
 import {
   FACEBOOK_SOURCE,
@@ -113,7 +113,7 @@ export class FacebookMonitor implements OnModuleInit, OnModuleDestroy {
    */
   private async judgeChat(chat: SitniksChat): Promise<ChatVerdict> {
     const messages = await this.sitniks.latestMessages({ chatId: chat.id, limit: NEWEST_MESSAGES });
-    if (isRepliedAfterPrice({ messages, userId: chat.userId })) return 'replied';
+    if (needsChoiceFromNew({ messages, userId: chat.userId })) return 'replied';
     const hasClientDirect = await this.sitniks.hasClientMessage({
       chatId: chat.id,
       userId: chat.userId,

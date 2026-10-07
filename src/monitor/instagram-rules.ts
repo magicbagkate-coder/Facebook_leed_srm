@@ -1,4 +1,10 @@
-import { isButtonOrLike, isPressHerePrompt, isPriceButton, isThanksOrRefusal } from '#app/monitor/bot-texts.js';
+import {
+  isButtonOrLike,
+  isManagerHandoff,
+  isPressHerePrompt,
+  isPriceButton,
+  isThanksOrRefusal,
+} from '#app/monitor/bot-texts.js';
 import {
   DIALOG_WINDOW_MS,
   NEWEST_MESSAGES,
@@ -84,6 +90,22 @@ export function isRepliedAfterPrice(options: LatestSenderOptions): boolean {
   const afterPress = messages.slice(0, pressIndex);
   if (afterPress.some((message) => senderOf(message, userId) === 'manager')) return false;
   return afterPress.some((message) => isRealReply(message, userId));
+}
+
+/** The newest message is a bot message that hands the client over to a manager (nobody answered yet). */
+export function isBotHandoffLast(options: LatestSenderOptions): boolean {
+  const [latest] = recentMessages(options.messages, options.nowMs ?? Date.now());
+  return latest !== undefined && senderOf(latest, options.userId) === 'page' && isManagerHandoff(latest.text);
+}
+
+/** A chat in "Новий" must go to "Вибір товару": a reply after the price button or a bot handoff to a manager. */
+export function needsChoiceFromNew(options: LatestSenderOptions): boolean {
+  return isRepliedAfterPrice(options) || isBotHandoffLast(options);
+}
+
+/** A chat in "Новий БОТ" or "Фейсбук" must go to "Вибір товару": the client wrote last, or the cases above. */
+export function needsChoiceFromBot(options: LatestSenderOptions): boolean {
+  return isClientLast(options) || needsChoiceFromNew(options);
 }
 
 /**

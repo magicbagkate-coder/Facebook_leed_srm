@@ -1,4 +1,4 @@
-import { isBotWaiting, isClientLast, isRepliedAfterPrice, recentMessages } from '#app/monitor/instagram-rules.js';
+import { isBotHandoffLast, isBotWaiting, isClientLast, isRepliedAfterPrice, needsChoiceFromBot, needsChoiceFromNew, recentMessages } from '#app/monitor/instagram-rules.js';
 import type { SitniksMessage } from '#app/sitniks/sitniks.types.js';
 
 const USER_ID = 'client-1';
@@ -107,6 +107,33 @@ describe('isRepliedAfterPrice', () => {
 
   it('is false while the client has not replied yet', () => {
     expect(check([photoOld, priceReply, priceClick])).toBe(false);
+  });
+});
+
+describe('bot handoff to a manager', () => {
+  const handoff = buildMessage({ from: 'page', ageSeconds: 30, text: 'Зараз наш менеджер відправить вам більше фото' });
+  const managerReply = buildMessage({ from: 'manager', ageSeconds: 10, text: 'Вітаю' });
+  const opts = (messages: SitniksMessage[]): { messages: SitniksMessage[]; userId: string; nowMs: number } => ({
+    messages,
+    userId: USER_ID,
+    nowMs: NOW_MS,
+  });
+
+  it('is detected when the newest message is the bot handoff', () => {
+    expect(isBotHandoffLast(opts([handoff, priceClick]))).toBe(true);
+    expect(needsChoiceFromNew(opts([handoff]))).toBe(true);
+    expect(needsChoiceFromBot(opts([handoff]))).toBe(true);
+  });
+
+  it('is not detected after a manager already answered or for an ordinary bot message', () => {
+    expect(isBotHandoffLast(opts([managerReply, handoff]))).toBe(false);
+    expect(isBotHandoffLast(opts([priceReply, priceClick]))).toBe(false);
+  });
+
+  it('does not move a chat in "Новий" only because the client wrote last', () => {
+    const freeText = buildMessage({ from: 'client', ageSeconds: 30, text: 'Добрий день, яка ціна?' });
+    expect(needsChoiceFromNew(opts([freeText]))).toBe(false);
+    expect(needsChoiceFromBot(opts([freeText]))).toBe(true);
   });
 });
 

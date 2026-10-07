@@ -140,6 +140,19 @@ describe('InstagramMonitor', () => {
     expect(await buildMonitor(fake).moveRepliedChats()).toEqual([]);
   });
 
+  it('moves a chat in "Новий" when the bot handed the client over to a manager', async () => {
+    appConfig.instagramDryRun = false;
+    const handoff: SitniksMessage[] = [
+      { sentBy: 'page', createdAt: minutesAgo(1), text: 'Зараз допоможемо оформити вам замовлення' },
+      { sentBy: USER_ID, createdAt: minutesAgo(1), text: 'оформити замовлення' },
+    ];
+    const fake = new FakeSitniksClient([chat], handoff);
+    const movedIds = await buildMonitor(fake).moveSilentChats();
+    expect(movedIds).toEqual(['chat-1']);
+    expect(fake.statusCalls).toEqual([{ chatId: 'chat-1', status: 'Вибір товару' }]);
+    expect(fake.tagCalls).toEqual([{ chatId: 'chat-1', tags: ['Reels', 'НБ', 'Внимание'] }]);
+  });
+
   it('changes nothing in dry-run mode', async () => {
     const fake = new FakeSitniksClient([chat], silentFlow);
     const movedIds = await buildMonitor(fake).moveSilentChats();

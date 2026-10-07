@@ -1,4 +1,4 @@
-import { isButtonOrLike, isLikeSticker, isPressHerePrompt, isPriceButton, isThanksOrRefusal } from '#app/monitor/bot-texts.js';
+import { isButtonOrLike, isLikeSticker, isManagerHandoff, isPressHerePrompt, isPriceButton, isThanksOrRefusal } from '#app/monitor/bot-texts.js';
 
 describe('bot texts', () => {
   it('recognizes the price button in any letter case', () => {
@@ -29,6 +29,15 @@ describe('bot texts', () => {
   it('treats the price button and a like as not a live message', () => {
     expect(isButtonOrLike({ text: 'дізнатись ціну' })).toBe(true);
     expect(isButtonOrLike({ text: 'бажаю замовити' })).toBe(false);
+  });
+
+  it('recognizes the bot messages that hand the client over to a manager', () => {
+    expect(isManagerHandoff('Звісно🤍 Менеджер зараз підбере для Вас інші моделі')).toBe(true);
+    expect(isManagerHandoff('Зараз наш менеджер відправить вам більше фото')).toBe(true);
+    expect(isManagerHandoff('Зараз допоможемо оформити вам замовлення')).toBe(true);
+    expect(isManagerHandoff('Вітаю💛 Гарний вибір! Вартість сумки 1595 грн')).toBe(false);
+    expect(isManagerHandoff('⬇натисніть тут⬇')).toBe(false);
+    expect(isManagerHandoff(undefined)).toBe(false);
   });
 
   it('recognizes the press-here prompt', () => {
