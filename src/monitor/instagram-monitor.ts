@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 
 import { appConfig } from '#app/config/app-config.js';
-import { moveChatTo } from '#app/monitor/chat-mover.js';
+import { moveChatTo, tagsForMove } from '#app/monitor/chat-mover.js';
 import { isBotWaiting, isClientLast, isRepliedAfterPrice } from '#app/monitor/instagram-rules.js';
 import { JobRunner } from '#app/monitor/job-runner.js';
 import {
@@ -113,7 +113,7 @@ export class InstagramMonitor implements OnModuleInit, OnModuleDestroy {
       logger: this.logger,
       chat: options.chat,
       status: options.status,
-      tag: NEW_BOT_TAG,
+      tags: tagsForMove({ sourceTag: NEW_BOT_TAG, status: options.status }),
       dryRun: appConfig.instagramDryRun,
     });
   }

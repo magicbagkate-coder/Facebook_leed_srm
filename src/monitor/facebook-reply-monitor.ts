@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 
 import { appConfig } from '#app/config/app-config.js';
-import { moveChatTo } from '#app/monitor/chat-mover.js';
+import { moveChatTo, tagsForMove } from '#app/monitor/chat-mover.js';
 import { isClientLast } from '#app/monitor/instagram-rules.js';
 import { JobRunner } from '#app/monitor/job-runner.js';
 import {
@@ -82,7 +82,7 @@ export class FacebookReplyMonitor implements OnModuleInit, OnModuleDestroy {
       logger: this.logger,
       chat,
       status: PRODUCT_STATUS,
-      tag: FACEBOOK_TAG,
+      tags: tagsForMove({ sourceTag: FACEBOOK_TAG, status: PRODUCT_STATUS }),
       dryRun: appConfig.dryRun,
     });
   }

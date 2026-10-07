@@ -3,7 +3,6 @@ import {
   DIALOG_WINDOW_MS,
   NEWEST_MESSAGES,
   SILENCE_MS,
-  URGENT_AFTER_MS,
 } from '#app/monitor/monitor.constants.js';
 import type { SitniksMessage } from '#app/sitniks/sitniks.types.js';
 
@@ -71,23 +70,6 @@ function isRealReply(message: SitniksMessage, userId: string): boolean {
 /** Keeps only the messages of the last 24 hours, so an old dialog never affects a chat today. */
 export function recentMessages(messages: SitniksMessage[], nowMs: number): SitniksMessage[] {
   return messages.filter((message) => nowMs - Date.parse(message.createdAt) <= DIALOG_WINDOW_MS);
-}
-
-export type WaitVerdict = 'urgent' | 'young' | 'fine';
-
-/**
- * Rule 4: the client wrote a real message and no manager has answered since.
- * "urgent" after URGENT_AFTER_MS, "young" while it is still fresh, "fine" when a manager answered
- * or the client wrote nothing that needs an answer. Messages are ordered newest first.
- */
-export function judgeWaiting(options: BotWaitingOptions): WaitVerdict {
-  const { userId, nowMs } = options;
-  const messages = recentMessages(options.messages, nowMs);
-  const clientIndex = messages.findIndex((message) => isRealReply(message, userId));
-  if (clientIndex === -1) return 'fine';
-  const managerIndex = messages.findIndex((message) => senderOf(message, userId) === 'manager');
-  if (managerIndex !== -1 && managerIndex < clientIndex) return 'fine';
-  return nowMs - Date.parse(messages[clientIndex].createdAt) >= URGENT_AFTER_MS ? 'urgent' : 'young';
 }
 
 /**

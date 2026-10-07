@@ -118,6 +118,6 @@ describe('FacebookMonitor', () => {
     const movedIds = await buildMonitor(fake).runOnce({ dryRun: false });
     expect(movedIds).toEqual(['replied']);
     expect(fake.statusById.replied).toBe('Вибір товару');
-    expect(fake.tagCalls).toEqual([{ chatId: 'replied', tags: ['ФБ'] }]);
+    expect(fake.tagCalls).toEqual([{ chatId: 'replied', tags: ['ФБ', 'Внимание'] }]);
   });
 });

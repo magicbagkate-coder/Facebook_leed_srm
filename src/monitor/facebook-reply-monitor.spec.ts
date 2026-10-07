@@ -70,7 +70,7 @@ describe('FacebookReplyMonitor', () => {
     const fake = new FakeSitniksClient([chat], clientWrote);
     const movedIds = await buildMonitor(fake).moveRepliedChats();
     expect(movedIds).toEqual(['chat-1']);
-    expect(fake.tagCalls).toEqual([{ chatId: 'chat-1', tags: ['ФБ'] }]);
+    expect(fake.tagCalls).toEqual([{ chatId: 'chat-1', tags: ['ФБ', 'Внимание'] }]);
     expect(fake.statusCalls).toEqual([{ chatId: 'chat-1', status: 'Вибір товару' }]);
     expect(fake.listCalls[0].status).toBe('Фейсбук');
     expect(fake.listCalls[0].startDate).toBeDefined();
@@ -86,7 +86,7 @@ describe('FacebookReplyMonitor', () => {
   it('moves a chat reported by a webhook without extra reads', async () => {
     const fake = new FakeSitniksClient([], []);
     await buildMonitor(fake).reviewReply({ ...chat, tags: ['ФБ'] });
-    expect(fake.tagCalls).toEqual([]);
+    expect(fake.tagCalls).toEqual([{ chatId: 'chat-1', tags: ['ФБ', 'Внимание'] }]);
     expect(fake.statusCalls).toEqual([{ chatId: 'chat-1', status: 'Вибір товару' }]);
   });
 });

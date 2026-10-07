@@ -92,7 +92,7 @@ describe('InstagramMonitor', () => {
     const fake = new FakeSitniksClient([chat], clientReply);
     const movedIds = await buildMonitor(fake).moveRepliedChats();
     expect(movedIds).toEqual(['chat-1']);
-    expect(fake.tagCalls).toEqual([{ chatId: 'chat-1', tags: ['Reels', 'НБ'] }]);
+    expect(fake.tagCalls).toEqual([{ chatId: 'chat-1', tags: ['Reels', 'НБ', 'Внимание'] }]);
     expect(fake.statusCalls).toEqual([{ chatId: 'chat-1', status: 'Вибір товару' }]);
     expect(fake.listCalls[0].startDate).toBeDefined();
   });
@@ -102,7 +102,7 @@ describe('InstagramMonitor', () => {
     const taggedChat = { ...chat, tags: ['НБ'] };
     const fake = new FakeSitniksClient([taggedChat], clientReply);
     await buildMonitor(fake).moveRepliedChats();
-    expect(fake.tagCalls).toEqual([]);
+    expect(fake.tagCalls).toEqual([{ chatId: 'chat-1', tags: ['НБ', 'Внимание'] }]);
     expect(fake.statusCalls).toEqual([{ chatId: 'chat-1', status: 'Вибір товару' }]);
   });
 
@@ -111,7 +111,7 @@ describe('InstagramMonitor', () => {
     const fake = new FakeSitniksClient([chat], repliedFlow);
     const movedIds = await buildMonitor(fake).moveSilentChats();
     expect(movedIds).toEqual(['chat-1']);
-    expect(fake.tagCalls).toEqual([{ chatId: 'chat-1', tags: ['Reels', 'НБ'] }]);
+    expect(fake.tagCalls).toEqual([{ chatId: 'chat-1', tags: ['Reels', 'НБ', 'Внимание'] }]);
     expect(fake.statusCalls).toEqual([{ chatId: 'chat-1', status: 'Вибір товару' }]);
   });
 

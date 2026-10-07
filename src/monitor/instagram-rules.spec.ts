@@ -1,4 +1,4 @@
-import { isBotWaiting, isClientLast, isRepliedAfterPrice, judgeWaiting, recentMessages } from '#app/monitor/instagram-rules.js';
+import { isBotWaiting, isClientLast, isRepliedAfterPrice, recentMessages } from '#app/monitor/instagram-rules.js';
 import type { SitniksMessage } from '#app/sitniks/sitniks.types.js';
 
 const USER_ID = 'client-1';
@@ -125,10 +125,6 @@ describe('only the last 24 hours count (a new bot prompt months later)', () => {
 
   it('does not treat an old reply as a reply to the new bot prompt', () => {
     expect(isRepliedAfterPrice({ messages: history, userId: USER_ID, nowMs: NOW_MS })).toBe(false);
-  });
-
-  it('does not mark a chat as waiting for a manager because of an old reply', () => {
-    expect(judgeWaiting({ messages: history, userId: USER_ID, nowMs: NOW_MS })).toBe('fine');
   });
 
   it('moves such a chat back to the bot after the silence', () => {
