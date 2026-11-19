@@ -188,6 +188,12 @@ describe('a manager answered faster than our scan', () => {
     expect(needsChoiceFromBot(opts([managerAnswer, refusal, photoOld, priceClick]))).toBe(false);
   });
 
+  it('ignores a reply from before the latest price button press (a new flow started)', () => {
+    const newPress = buildMessage({ from: 'client', ageSeconds: 100, text: 'Дізнатись ціну' });
+    const botAnswer = buildMessage({ from: 'page', ageSeconds: 90, text: 'Вітаю💛 Гарний вибір' });
+    expect(needsChoiceFromBot(opts([botAnswer, newPress, reply]))).toBe(false);
+  });
+
   it('ignores a reply that is older than 24 hours', () => {
     const oldReply = buildMessage({ from: 'client', ageSeconds: 60 * 60 * 30, text: 'Так' });
     expect(needsChoiceFromBot(opts([managerAnswer, oldReply]))).toBe(false);

@@ -109,10 +109,16 @@ export function needsChoiceFromNew(options: LatestSenderOptions): boolean {
   return isRepliedAfterPrice(options) || isBotHandoffPending(options);
 }
 
-/** The client wrote a real reply in the last 24 hours, even if a manager has already answered it. */
+/**
+ * The client wrote a real reply in the last 24 hours, even if a manager has already answered it.
+ * A new press of the price button starts a new flow, so only the messages after the latest press count.
+ */
 export function hasRealClientReply(options: LatestSenderOptions): boolean {
+  const { userId } = options;
   const messages = recentMessages(options.messages, options.nowMs ?? Date.now());
-  return messages.some((message) => isRealReply(message, options.userId));
+  const pressIndex = messages.findIndex((message) => senderOf(message, userId) === 'client' && isPriceButton(message.text));
+  const flow = pressIndex === -1 ? messages : messages.slice(0, pressIndex);
+  return flow.some((message) => isRealReply(message, userId));
 }
 
 /**
