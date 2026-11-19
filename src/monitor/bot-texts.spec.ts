@@ -18,6 +18,24 @@ describe('bot texts', () => {
     expect(isThanksOrRefusal(undefined)).toBe(false);
   });
 
+  it('treats a short "no interest" answer as a refusal', () => {
+    expect(isThanksOrRefusal('Дорого')).toBe(true);
+    expect(isThanksOrRefusal('Ні')).toBe(true);
+    expect(isThanksOrRefusal('Не цікаво')).toBe(true);
+    expect(isThanksOrRefusal('Не хочу, дякую')).toBe(true);
+    expect(isThanksOrRefusal('Подумаю')).toBe(true);
+  });
+
+  it('treats interest, agreement and unclear answers as a live reply', () => {
+    expect(isThanksOrRefusal('Так, цікаво')).toBe(false);
+    expect(isThanksOrRefusal('Дякую, так')).toBe(false);
+    expect(isThanksOrRefusal('Цікаво')).toBe(false);
+    expect(isThanksOrRefusal('ок')).toBe(false);
+    expect(isThanksOrRefusal('🙂')).toBe(false);
+    expect(isThanksOrRefusal('Чому так дорого?')).toBe(false);
+    expect(isThanksOrRefusal('Покажіть ще')).toBe(false);
+  });
+
   it('recognizes the Facebook like sticker but not a real photo', () => {
     const sticker = 'https://scontent.xx.fbcdn.net/v/t39.1997-6/39178562_1505197616293642_n.png?stp=cp0';
     const photo = 'https://scontent.xx.fbcdn.net/v/t1.15752-9/825260946_2289111_n.jpg?stp=dst';

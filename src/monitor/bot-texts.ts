@@ -22,16 +22,22 @@ export function isManagerHandoff(text: string | undefined): boolean {
 const COURTESY_PHRASES = [
   'не потрібно',
   'не треба',
-  'не цікавить',
+  'не цікав',
   'не нужно',
   'не надо',
-  'не интересует',
+  'не интерес',
+  'не хочу',
+  'не буду',
   'дякую',
   'дякуємо',
   'спасибі',
   'спасибо',
   'благодарю',
 ];
+// Short words must match as a whole word: "ні" is also a part of many other words
+const COURTESY_WORDS = /(^|[^\p{L}])(ні|нет|дорого|дорогувато|зайве|пізніше|подумаю|подумаємо)([^\p{L}]|$)/u;
+// A refusal that also shows interest ("дякую, так", "цікаво") is a live answer
+const INTEREST_PATTERN = /(^|[^\p{L}])(так|да|беру|замовити)([^\p{L}]|$)|(?<!не )(цікаво|хочу)/u;
 const MAX_COURTESY_LENGTH = 30;
 
 type MessageContent = {
@@ -57,11 +63,15 @@ export function isButtonOrLike(content: MessageContent): boolean {
   return isPriceButton(content.text) || isLikeSticker(content);
 }
 
+function hasRefusalWords(value: string): boolean {
+  return COURTESY_WORDS.test(value) || COURTESY_PHRASES.some((phrase) => value.includes(phrase));
+}
+
 /** A short thanks or refusal without a question: the manager decides what to do with such a chat. */
 export function isThanksOrRefusal(text: string | undefined): boolean {
   const value = (text ?? '').toLowerCase();
-  if (value.length > MAX_COURTESY_LENGTH || value.includes('?')) return false;
-  return COURTESY_PHRASES.some((phrase) => value.includes(phrase));
+  if (value.length > MAX_COURTESY_LENGTH || value.includes('?') || INTEREST_PATTERN.test(value)) return false;
+  return hasRefusalWords(value);
 }
 
 /** Our bot asked the client to press a button. */
