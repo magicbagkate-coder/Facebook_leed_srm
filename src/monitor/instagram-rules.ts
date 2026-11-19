@@ -92,15 +92,21 @@ export function isRepliedAfterPrice(options: LatestSenderOptions): boolean {
   return afterPress.some((message) => isRealReply(message, userId));
 }
 
-/** The newest message is a bot message that hands the client over to a manager (nobody answered yet). */
-export function isBotHandoffLast(options: LatestSenderOptions): boolean {
-  const [latest] = recentMessages(options.messages, options.nowMs ?? Date.now());
-  return latest !== undefined && senderOf(latest, options.userId) === 'page' && isManagerHandoff(latest.text);
+/**
+ * Our bot handed the client over to a manager in the last 24 hours and no manager has answered since.
+ * The client may have written after the handoff ("Чекаю"): the chat still waits for a manager.
+ */
+export function isBotHandoffPending(options: LatestSenderOptions): boolean {
+  const { userId } = options;
+  const messages = recentMessages(options.messages, options.nowMs ?? Date.now());
+  const handoffIndex = messages.findIndex((message) => senderOf(message, userId) === 'page' && isManagerHandoff(message.text));
+  if (handoffIndex === -1) return false;
+  return !messages.slice(0, handoffIndex).some((message) => senderOf(message, userId) === 'manager');
 }
 
 /** A chat in "Новий" must go to "Вибір товару": a reply after the price button or a bot handoff to a manager. */
 export function needsChoiceFromNew(options: LatestSenderOptions): boolean {
-  return isRepliedAfterPrice(options) || isBotHandoffLast(options);
+  return isRepliedAfterPrice(options) || isBotHandoffPending(options);
 }
 
 /** A chat in "Новий БОТ" or "Фейсбук" must go to "Вибір товару": the client wrote last, or the cases above. */

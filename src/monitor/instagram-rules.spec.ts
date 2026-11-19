@@ -1,4 +1,4 @@
-import { isBotHandoffLast, isBotWaiting, isClientLast, isRepliedAfterPrice, needsChoiceFromBot, needsChoiceFromNew, recentMessages } from '#app/monitor/instagram-rules.js';
+import { isBotHandoffPending, isBotWaiting, isClientLast, isRepliedAfterPrice, needsChoiceFromBot, needsChoiceFromNew, recentMessages } from '#app/monitor/instagram-rules.js';
 import type { SitniksMessage } from '#app/sitniks/sitniks.types.js';
 
 const USER_ID = 'client-1';
@@ -120,14 +120,25 @@ describe('bot handoff to a manager', () => {
   });
 
   it('is detected when the newest message is the bot handoff', () => {
-    expect(isBotHandoffLast(opts([handoff, priceClick]))).toBe(true);
+    expect(isBotHandoffPending(opts([handoff, priceClick]))).toBe(true);
     expect(needsChoiceFromNew(opts([handoff]))).toBe(true);
     expect(needsChoiceFromBot(opts([handoff]))).toBe(true);
   });
 
+  it('is detected even when the client wrote after the handoff', () => {
+    const waiting = buildMessage({ from: 'client', ageSeconds: 5, text: 'Чекаю' });
+    expect(isBotHandoffPending(opts([waiting, handoff, priceReply]))).toBe(true);
+    expect(needsChoiceFromNew(opts([waiting, handoff, priceReply]))).toBe(true);
+  });
+
   it('is not detected after a manager already answered or for an ordinary bot message', () => {
-    expect(isBotHandoffLast(opts([managerReply, handoff]))).toBe(false);
-    expect(isBotHandoffLast(opts([priceReply, priceClick]))).toBe(false);
+    expect(isBotHandoffPending(opts([managerReply, handoff]))).toBe(false);
+    expect(isBotHandoffPending(opts([priceReply, priceClick]))).toBe(false);
+  });
+
+  it('ignores a handoff older than 24 hours', () => {
+    const oldHandoff = buildMessage({ from: 'page', ageSeconds: 60 * 60 * 25, text: 'Зараз наш менеджер вам допоможе з вибором.' });
+    expect(isBotHandoffPending(opts([oldHandoff]))).toBe(false);
   });
 
   it('does not move a chat in "Новий" only because the client wrote last', () => {
