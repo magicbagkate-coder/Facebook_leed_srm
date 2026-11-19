@@ -109,9 +109,18 @@ export function needsChoiceFromNew(options: LatestSenderOptions): boolean {
   return isRepliedAfterPrice(options) || isBotHandoffPending(options);
 }
 
-/** A chat in "Новий БОТ" or "Фейсбук" must go to "Вибір товару": the client wrote last, or the cases above. */
+/** The client wrote a real reply in the last 24 hours, even if a manager has already answered it. */
+export function hasRealClientReply(options: LatestSenderOptions): boolean {
+  const messages = recentMessages(options.messages, options.nowMs ?? Date.now());
+  return messages.some((message) => isRealReply(message, options.userId));
+}
+
+/**
+ * A chat in "Новий БОТ" or "Фейсбук" must go to "Вибір товару": the client wrote a real reply
+ * (a manager may have answered it faster than our scan), or the cases above.
+ */
 export function needsChoiceFromBot(options: LatestSenderOptions): boolean {
-  return isClientLast(options) || needsChoiceFromNew(options);
+  return isClientLast(options) || hasRealClientReply(options) || needsChoiceFromNew(options);
 }
 
 /**

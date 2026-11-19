@@ -170,6 +170,30 @@ describe('only the last 24 hours count (a new bot prompt months later)', () => {
   });
 });
 
+describe('a manager answered faster than our scan', () => {
+  const reply = buildMessage({ from: 'client', ageSeconds: 200, text: 'Так' });
+  const managerAnswer = buildMessage({ from: 'manager', ageSeconds: 100, text: 'Вітаю' });
+  const opts = (messages: SitniksMessage[]): { messages: SitniksMessage[]; userId: string; nowMs: number } => ({
+    messages,
+    userId: USER_ID,
+    nowMs: NOW_MS,
+  });
+
+  it('still needs "Вибір товару" when the client wrote a real reply and the manager answered it', () => {
+    expect(needsChoiceFromBot(opts([managerAnswer, reply, photoOld, priceClick]))).toBe(true);
+  });
+
+  it('does not move a chat when the client only said thanks or refused and the manager answered', () => {
+    const refusal = buildMessage({ from: 'client', ageSeconds: 200, text: 'Дорого' });
+    expect(needsChoiceFromBot(opts([managerAnswer, refusal, photoOld, priceClick]))).toBe(false);
+  });
+
+  it('ignores a reply that is older than 24 hours', () => {
+    const oldReply = buildMessage({ from: 'client', ageSeconds: 60 * 60 * 30, text: 'Так' });
+    expect(needsChoiceFromBot(opts([managerAnswer, oldReply]))).toBe(false);
+  });
+});
+
 describe('isClientLast', () => {
   it('is true when the newest message is from the client', () => {
     const reaction = buildMessage({ from: 'client', ageSeconds: 5, text: 'Дальше' });
