@@ -37,27 +37,6 @@ const charts = {};
 function time(iso) {
   return new Date(iso).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit', timeZone: zone });
 }
-function hourOf(iso) {
-  return new Intl.DateTimeFormat('uk-UA', { hour: '2-digit', hourCycle: 'h23', timeZone: zone }).format(new Date(iso));
-}
-// Writes the hour (14:00, 15:00 ...) next to the first dot of every hour
-const hourLabels = {
-  id: 'hourLabels',
-  afterDatasetsDraw(chart) {
-    const dots = chart.data.datasets[0].data;
-    const meta = chart.getDatasetMeta(0);
-    const ctx = chart.ctx;
-    ctx.save();
-    ctx.fillStyle = '#495057';
-    ctx.font = 'bold 11px system-ui';
-    ctx.textAlign = 'center';
-    dots.forEach((dot, index) => {
-      const isNewHour = index === 0 || hourOf(dot.at) !== hourOf(dots[index - 1].at);
-      if (isNewHour) ctx.fillText(hourOf(dot.at) + ':00', meta.data[index].x, meta.data[index].y - 10);
-    });
-    ctx.restore();
-  },
-};
 // One dot per measurement: x = leads without an answer, y = all leads of the status
 function draw(id, points, status) {
   const dots = points.map((point) => ({ x: point[status].unanswered, y: point[status].total, at: point.at }));
@@ -67,8 +46,7 @@ function draw(id, points, status) {
     x: { beginAtZero: true, title: { display: true, text: 'Без відповіді' }, ticks: { precision: 0 } },
     y: { beginAtZero: true, title: { display: true, text: 'Кількість лідів' }, ticks: { precision: 0 } },
   };
-  const options = { animation: false, layout: { padding: { top: 18 } }, plugins: { tooltip }, scales };
-  const config = { type: 'scatter', data: { datasets: sets }, options, plugins: [hourLabels] };
+  const config = { type: 'scatter', data: { datasets: sets }, options: { animation: false, plugins: { tooltip }, scales } };
   if (charts[id]) { charts[id].data = config.data; charts[id].update(); return; }
   charts[id] = new Chart(document.getElementById(id), config);
 }
