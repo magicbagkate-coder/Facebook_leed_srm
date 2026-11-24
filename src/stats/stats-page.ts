@@ -25,8 +25,8 @@ export const STATS_PAGE_HTML = `<!doctype html>
   <span id="info"></span>
 </div>
 <div class="cards" id="cards"></div>
-<div class="box"><h2>Без відповіді</h2><canvas id="unanswered"></canvas></div>
-<div class="box"><h2>Усього лідів</h2><canvas id="totals"></canvas></div>
+<div class="box"><h2>Новий</h2><canvas id="newChats"></canvas></div>
+<div class="box"><h2>Вибір товару</h2><canvas id="productChoice"></canvas></div>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
 const token = location.pathname.split('/')[2];
@@ -38,7 +38,7 @@ function time(iso) {
   return new Date(iso).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit', timeZone: zone });
 }
 function draw(id, labels, sets) {
-  const config = { type: 'line', data: { labels, datasets: sets }, options: { animation: false, interaction: { mode: 'index', intersect: false }, scales: { y: { beginAtZero: true } } } };
+  const config = { type: 'line', data: { labels, datasets: sets }, options: { animation: false, interaction: { mode: 'index', intersect: false }, scales: { y: { beginAtZero: true, title: { display: true, text: 'Кількість лідів' } }, x: { title: { display: true, text: 'Час (Київ)' } } } } };
   if (charts[id]) { charts[id].data = config.data; charts[id].update(); return; }
   charts[id] = new Chart(document.getElementById(id), config);
 }
@@ -59,14 +59,12 @@ async function load() {
   if (!points.length) { document.getElementById('cards').innerHTML = ''; return; }
   const labels = points.map((point) => time(point.at));
   cards(points[points.length - 1]);
-  draw('unanswered', labels, [
-    line('Новий', '#e8590c', points.map((point) => point.newChats.unanswered)),
-    line('Вибір товару', '#7048e8', points.map((point) => point.productChoice.unanswered)),
-  ]);
-  draw('totals', labels, [
-    line('Новий', '#e8590c', points.map((point) => point.newChats.total)),
-    line('Вибір товару', '#7048e8', points.map((point) => point.productChoice.total)),
-  ]);
+  for (const status of ['newChats', 'productChoice']) {
+    draw(status, labels, [
+      line('Усього лідів', '#1c7ed6', points.map((point) => point[status].total)),
+      line('Без відповіді', '#e03131', points.map((point) => point[status].unanswered)),
+    ]);
+  }
 }
 dayInput.addEventListener('change', load);
 load();
