@@ -11,6 +11,8 @@ type AppConfig = {
   requestTimeoutMs: number;
   rateLimitPauseMs: number;
   requestGapMs: number;
+  telegramBotToken?: string;
+  telegramChatId?: string;
 };
 
 const DEFAULT_PORT = 5000;
@@ -40,4 +42,7 @@ export const appConfig: AppConfig = {
   requestTimeoutMs: REQUEST_TIMEOUT_MS,
   rateLimitPauseMs: RATE_LIMIT_PAUSE_MS,
   requestGapMs: REQUEST_GAP_MS,
+  // Notifications are optional: without both values nothing is sent
+  telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || undefined,
+  telegramChatId: process.env.TELEGRAM_CHAT_ID || undefined,
 };
