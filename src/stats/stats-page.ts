@@ -40,7 +40,7 @@ function time(iso) {
 // One dot per measurement: x = leads without an answer, y = all leads of the status
 function draw(id, points, status) {
   const dots = points.map((point) => ({ x: point[status].unanswered, y: point[status].total, at: point.at }));
-  const sets = [{ label: 'Замір (кожні 10 хв)', data: dots, backgroundColor: '#1c7ed6', pointRadius: 5 }];
+  const sets = [{ label: 'Замір (кожні 10 хв)', data: dots, backgroundColor: '#1c7ed6', borderColor: '#1c7ed6', showLine: true, tension: 0.2, pointRadius: 5 }];
   const tooltip = { callbacks: { label: (item) => time(item.raw.at) + ': без відповіді ' + item.raw.x + ', усього ' + item.raw.y } };
   const scales = {
     x: { beginAtZero: true, title: { display: true, text: 'Без відповіді' }, ticks: { precision: 0 } },
