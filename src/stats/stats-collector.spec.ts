@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { appConfig } from '#app/config/app-config.js';
-import type { LatestMessagesOptions, ListChatsOptions, SitniksChat, SitniksMessage } from '#app/sitniks/sitniks.types.js';
+import type { ListChatsOptions, SitniksChat, SitniksMessage } from '#app/sitniks/sitniks.types.js';
 import { SitniksClient } from '#app/sitniks/sitniks-client.js';
 import { StatsCollector } from '#app/stats/stats-collector.js';
 import { kyivDay, StatsStore } from '#app/stats/stats-store.js';
@@ -33,10 +33,10 @@ class FakeSitniksClient {
     return this.chats.filter((chat) => chat.status === options.status);
   }
 
-  async latestMessages(options: LatestMessagesOptions): Promise<SitniksMessage[]> {
+  async newestMessageOfAnyKind(chatId: string): Promise<SitniksMessage | undefined> {
     this.messageReads += 1;
-    const sender = this.clientLastIds.includes(options.chatId) ? `client-${options.chatId}` : 'page';
-    return [{ sentBy: sender, createdAt: new Date().toISOString() }];
+    const sender = this.clientLastIds.includes(chatId) ? `client-${chatId}` : 'page';
+    return { sentBy: sender, createdAt: new Date().toISOString() };
   }
 }
 

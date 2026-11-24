@@ -62,6 +62,21 @@ export class SitniksClient {
     return page.data;
   }
 
+  /** The newest message of the chat, a direct message or a public comment (the "without an answer" filter counts both). */
+  async newestMessageOfAnyKind(chatId: string): Promise<SitniksMessage | undefined> {
+    const direct = await this.newestOfKind({ chatId, isComment: false });
+    const comment = await this.newestOfKind({ chatId, isComment: true });
+    if (!direct || !comment) return direct ?? comment;
+    return Date.parse(comment.createdAt) > Date.parse(direct.createdAt) ? comment : direct;
+  }
+
+  private async newestOfKind(options: HasMessagesOptions): Promise<SitniksMessage | undefined> {
+    const query = new URLSearchParams({ limit: '1', isComment: String(options.isComment) });
+    const path = `/chats/${options.chatId}/messages`;
+    const page = await this.getJson<ChatMessagesResponse>({ method: 'GET', path, query });
+    return page.data[0];
+  }
+
   /** True if the client wrote a live direct message in the last 24 hours; our messages and bot button presses are ignored. */
   async hasClientMessage(options: ClientMessageOptions): Promise<boolean> {
     const path = `/chats/${options.chatId}/messages`;

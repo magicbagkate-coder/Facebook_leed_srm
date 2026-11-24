@@ -18,7 +18,7 @@ type CachedChat = {
 
 /**
  * Every 10 minutes counts the chats of "Новий" and "Вибір товару": all of them and those without an answer
- * (the newest direct message is the client's). The last message of a chat is read again only when the chat changed.
+ * (the newest message, a direct message or a comment, is the client's). The last message of a chat is read again only when the chat changed.
  */
 @Injectable()
 export class StatsCollector implements OnModuleInit, OnModuleDestroy {
@@ -71,7 +71,7 @@ export class StatsCollector implements OnModuleInit, OnModuleDestroy {
     const lastMessageAt = chat.lastMessageCreatedAt ?? '';
     const cached = this.cache.get(chat.id);
     if (cached && cached.lastMessageAt === lastMessageAt) return cached.isUnanswered;
-    const [latest] = await this.sitniks.latestMessages({ chatId: chat.id, limit: 1 });
+    const latest = await this.sitniks.newestMessageOfAnyKind(chat.id);
     const isUnanswered = latest !== undefined && latest.sentBy === chat.userId;
     this.cache.set(chat.id, { lastMessageAt, isUnanswered });
     return isUnanswered;
