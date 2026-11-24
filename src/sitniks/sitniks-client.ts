@@ -35,10 +35,10 @@ export class SitniksClient {
     do {
       const query = new URLSearchParams({
         status: options.status,
-        initialSource: options.initialSource,
         skip: String(chats.length),
         limit: String(PAGE_SIZE),
       });
+      if (options.initialSource) query.set('initialSource', options.initialSource);
       if (options.startDate) query.set('startDate', options.startDate);
       const page = await this.getJson<ChatListResponse>({ method: 'GET', path: '/chats', query });
       chats.push(...page.data);

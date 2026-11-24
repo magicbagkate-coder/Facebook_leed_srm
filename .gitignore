@@ -8,3 +8,5 @@ coverage/
 !.env.example
 
 .claude/settings.local.json
+
+data/

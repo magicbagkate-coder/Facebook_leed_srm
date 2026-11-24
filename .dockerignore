@@ -7,3 +7,4 @@ dist
 ai
 coverage
 *.log
+data

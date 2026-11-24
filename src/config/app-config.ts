@@ -13,6 +13,7 @@ type AppConfig = {
   requestGapMs: number;
   telegramBotToken?: string;
   telegramChatId?: string;
+  statsFile: string;
 };
 
 const DEFAULT_PORT = 5000;
@@ -45,4 +46,6 @@ export const appConfig: AppConfig = {
   // Notifications are optional: without both values nothing is sent
   telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || undefined,
   telegramChatId: process.env.TELEGRAM_CHAT_ID || undefined,
+  // Measurements of the chat counts; the folder is a docker volume, so a restart keeps them
+  statsFile: process.env.STATS_FILE ?? 'data/stats.jsonl',
 };

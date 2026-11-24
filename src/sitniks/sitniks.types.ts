@@ -29,7 +29,8 @@ export type ChatMessagesResponse = {
 
 export type ListChatsOptions = {
   status: string;
-  initialSource: string;
+  // Without a source the chats of all channels are listed
+  initialSource?: string;
   startDate?: string;
 };
 
