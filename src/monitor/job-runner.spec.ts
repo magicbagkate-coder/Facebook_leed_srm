@@ -45,11 +45,11 @@ describe('JobRunner report', () => {
   it('counts skipped passes and reports a successful pass', async () => {
     const runner = new JobRunner({
       name: 'ReportedJob',
-      intervalMs: 10,
-      run: async (): Promise<void> => wait(50),
+      intervalMs: 40,
+      run: async (): Promise<void> => wait(60),
     });
     runner.start();
-    await wait(130);
+    await wait(150);
     runner.stop();
     const report = runner.report();
     expect(report.skippedPasses).toBeGreaterThan(0);
