@@ -37,13 +37,18 @@ const charts = {};
 function time(iso) {
   return new Date(iso).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit', timeZone: zone });
 }
-function draw(id, labels, sets) {
-  const config = { type: 'line', data: { labels, datasets: sets }, options: { animation: false, interaction: { mode: 'index', intersect: false }, scales: { y: { beginAtZero: true, title: { display: true, text: 'Кількість лідів' } }, x: { title: { display: true, text: 'Час (Київ)' } } } } };
+// One dot per measurement: x = leads without an answer, y = all leads of the status
+function draw(id, points, status) {
+  const dots = points.map((point) => ({ x: point[status].unanswered, y: point[status].total, at: point.at }));
+  const sets = [{ label: 'Замір (кожні 10 хв)', data: dots, backgroundColor: '#1c7ed6', pointRadius: 5 }];
+  const tooltip = { callbacks: { label: (item) => time(item.raw.at) + ': без відповіді ' + item.raw.x + ', усього ' + item.raw.y } };
+  const scales = {
+    x: { beginAtZero: true, title: { display: true, text: 'Без відповіді' }, ticks: { precision: 0 } },
+    y: { beginAtZero: true, title: { display: true, text: 'Кількість лідів' }, ticks: { precision: 0 } },
+  };
+  const config = { type: 'scatter', data: { datasets: sets }, options: { animation: false, plugins: { tooltip }, scales } };
   if (charts[id]) { charts[id].data = config.data; charts[id].update(); return; }
   charts[id] = new Chart(document.getElementById(id), config);
-}
-function line(label, color, values) {
-  return { label, data: values, borderColor: color, backgroundColor: color, tension: 0.2, pointRadius: 2 };
 }
 function cards(last) {
   const items = [
@@ -57,14 +62,9 @@ async function load() {
   const points = await response.json();
   document.getElementById('info').textContent = points.length ? 'Замірів: ' + points.length + ', останній о ' + time(points[points.length - 1].at) : 'За цей день замірів ще немає';
   if (!points.length) { document.getElementById('cards').innerHTML = ''; return; }
-  const labels = points.map((point) => time(point.at));
   cards(points[points.length - 1]);
-  for (const status of ['newChats', 'productChoice']) {
-    draw(status, labels, [
-      line('Усього лідів', '#1c7ed6', points.map((point) => point[status].total)),
-      line('Без відповіді', '#e03131', points.map((point) => point[status].unanswered)),
-    ]);
-  }
+  draw('newChats', points, 'newChats');
+  draw('productChoice', points, 'productChoice');
 }
 dayInput.addEventListener('change', load);
 load();
